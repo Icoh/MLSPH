@@ -2,11 +2,21 @@
   <dictionary name="leonardo">
     <words>
       <w>accel</w>
+      <w>ddens</w>
       <w>drho</w>
       <w>dspiky</w>
+      <w>ndim</w>
+      <w>tlim</w>
       <w>vdiff</w>
+      <w>vect</w>
+      <w>xacc</w>
       <w>xdiff</w>
+      <w>xpos</w>
       <w>xunit</w>
+      <w>xvel</w>
+      <w>zacc</w>
+      <w>zpos</w>
+      <w>zvel</w>
     </words>
   </dictionary>
 </component>
