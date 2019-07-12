@@ -8,9 +8,9 @@ from time import time
 # Parameters
 dim = 2
 ndim = np.array([21, 21])
+dom = [[0., 2.], [0., 2.]]
 
 # Initialize particle positions (staggered cubic lattice)
-dom = [[0., 2.], [0., 2.]]
 px = np.linspace(0.0, 1.0, ndim[0])
 pz = np.linspace(0.0, 1.0, ndim[1])
 xsp = (px[-1] - px[0]) / ndim[0]
@@ -31,47 +31,68 @@ xpos = np.array(xpos)
 zpos = np.array(zpos)
 N = xpos.size
 
+xvel = np.zeros(N, dtype=np.float64)
+zvel = np.zeros(N, dtype=np.float64)
 mass = 2.5 * np.ones(N, dtype=np.float64)
 density = 1000 * np.ones(N, dtype=np.float64)
 pressure = eos(density)
 
-xvel = np.zeros(N, dtype=np.float64)
-zvel = np.zeros(N, dtype=np.float64)
-xacc_pre = np.zeros(N, dtype=np.float64)
-zacc_pre = np.zeros(N, dtype=np.float64)
-rho_pre = density
+xpos_half = xpos
+zpos_half = zpos
+xvel_half = xvel
+zvel_half = zvel
+density_half = density
+pressure_half = pressure
 
 # Run simulation
 support = 2
 h = zsp * 1.45
 dt = 0.0001
-tlim = 1
+tlim = 1.5
 evo = partial(calculate, support, h, N)
 print("Simulating SPH with {} particles.".format(N))
 print("Using  h = {:.5f};  dt = {}".format(h, dt))
 
-time_range = np.arange(0, tlim, dt)
+time_range = np.arange(dt, tlim, dt)
 tl = time_range.size
 start = time()
-for c, t in enumerate(time_range):
-    if not c % 100:
+plot(xpos, zpos, density, dom, 0, dt)
+
+# Perform first half-step to use leap-frog scheme subsequently. The old values will serve as the previous
+# half-step, while the new values will serve as initial setup.
+xacc, zacc, drho = evo(xpos, zpos, xvel, zvel, mass, density, pressure)
+xpos = xpos + xvel*dt*0.5
+zpos = zpos + zvel*dt*0.5
+xvel = xvel + xacc * dt * 0.5
+zvel = zvel + zacc * dt * 0.5
+density = density + drho * dt * 0.5
+pressure = eos(density)
+
+for c, t in enumerate(time_range, 1):
+    if not c % 50:
         elapsed = time()-start
         plot(xpos, zpos, density, dom, c, dt)
         print("> Progress = {:.2f}%".format(t/tlim))
         print("  - Max density =", max(density))
-        if c:
-            print("  - Time elapsed = {:.2f}s".format(elapsed))
-            print("  - Estimated time left = {:.2f}s".format((tl-c)*elapsed/c))
+        print("  - Time elapsed = {:.2f}s".format(elapsed))
+        print("  - Estimated time left = {:.2f}s".format((tl-c)*elapsed/c))
 
-    xacc, zacc, drho = evo(xpos, zpos, xvel, zvel, mass, density, pressure)
+    # Leapfrog scheme: first integrate from previous halfstep, then use this in integrate once again.
+    xacc, zacc, drho = evo(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half)
+    xpos_half = xpos + xvel*dt*0.5
+    zpos_half = zpos + zvel*dt*0.5
+    xvel_half = xvel + xacc * dt * 0.5
+    zvel_half = zvel + zacc * dt * 0.5
+    density_half = density + drho * dt * 0.5
+    pressure_half = eos(density_half)
 
-    # Integrate
-    density += drho * dt
+    xacc, zacc, drho = evo(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half)
+    xvel = xvel + xacc * dt
+    zvel = zvel + zacc * dt
+    xpos = xpos_half + xvel*dt*0.5
+    zpos = zpos_half + zvel*dt*0.5
+    density = density_half + drho * dt * 0.5
     pressure = eos(density)
-    xvel += xacc * dt
-    zvel += zacc * dt
-    xpos += xvel * dt
-    zpos += zvel * dt
 
     xpos, xvel = check_reflect(xpos, xvel, dom[0])
     zpos, zvel = check_reflect(zpos, zvel, dom[1])

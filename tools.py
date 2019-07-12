@@ -52,9 +52,6 @@ def check_reflect(pos, vel, domain):
     isupper = pos > upper
     if any(islower):
         pos[islower], vel[islower] = damp_reflect(pos[islower], vel[islower], lower)
-        return pos, vel
-    elif any(isupper):
+    if any(isupper):
         pos[isupper], vel[isupper] = damp_reflect(pos[isupper], vel[isupper], upper)
-        return pos, vel
-    else:
-        return pos, vel
+    return pos, vel

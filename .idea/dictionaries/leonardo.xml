@@ -5,6 +5,9 @@
       <w>ddens</w>
       <w>drho</w>
       <w>dspiky</w>
+      <w>hdrho</w>
+      <w>hxacc</w>
+      <w>hzacc</w>
       <w>ndim</w>
       <w>tlim</w>
       <w>vdiff</w>
