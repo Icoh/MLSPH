@@ -1,112 +1,16 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import scipy.linalg as lin
 import scipy.spatial as sp
-
-
-# Tools
-def plot(X, Z, D, domain, step, dt):
-    f = plt.figure(figsize=(20, 14))
-    plt.scatter(X, Z, c=D, cmap='viridis_r', alpha=0.6)
-    plt.clim(950, 1050)
-    plt.colorbar()
-    plt.title("T = {:.4f} s".format(step*dt))
-    plt.xlim(domain[0][0] - 0.1, domain[0][-1] + 0.1)
-    plt.ylim(domain[1][0] - 0.1, domain[1][-1] + 0.1)
-    plt.savefig("{}/{}.png".format("sim", str(step)), bbox_inches='tight')
-    plt.close(f)
-    return
-
-
-def unit(vector, norm):
-    vector = np.array(vector)
-
-    nm = norm[:]
-    nm.shape = (nm.size, 1)
-
-    unit_vect = vector / nm
-    nans = np.isnan(unit_vect)
-    unit_vect[nans] = [0, 0]
-    return unit_vect
-
-
-def damp_reflect(pos, vel, wall):
-    damp = 0.75
-
-    quiet = vel == 0.0
-    p_pos = pos
-
-    tb = (pos - wall) / vel
-    pos -= vel * (1 - damp) * tb
-
-    pos = 2 * wall - pos
-    vel = -vel
-    vel *= damp
-
-    vel[quiet] = np.zeros(vel[quiet].size)
-    pos[quiet] = p_pos[quiet]
-    return pos, vel
-
-
-def check_reflect(pos, vel, domain):
-    lower = domain[0]
-    upper = domain[1]
-    islower = pos < lower
-    isupper = pos > upper
-    if any(islower):
-        pos[islower], vel[islower] = damp_reflect(pos[islower], vel[islower], lower)
-        return pos, vel
-    elif any(isupper):
-        pos[isupper], vel[isupper] = damp_reflect(pos[isupper], vel[isupper], upper)
-        return pos, vel
-    else:
-        return pos, vel
-
-
-# Kernel
-def gaussian(r, unit_vect, h):
-    q = r / h
-    g = np.exp(-q ** 2) / (h ** 2 * np.pi) ** (dim / 2.)
-    gv, qv = g[:], q[:]
-    gv.shape = (gv.size, 1)
-    qv.shape = (qv.size, 1)
-    dg = -2 * qv / h * gv * unit_vect
-    return g, dg
-
-
-# Equations
-def eos(rho):
-    c = 10.
-    gamma = 7.
-    rho0 = 1000.
-    b = c ** 2 * rho0 / gamma
-    p = b * ((rho / rho0) ** gamma - 1)
-    return p
-
-
-def summation_density(mass, kernel):
-    return mass * kernel
-
-
-def continuity(mass, vdiff, dkernel):
-    return mass * np.sum(vdiff * dkernel, axis=1)
-
-
-def pressure_term(mass, rhoa, pressa, rhob, pressb, dkernel):
-    a = pressa / rhoa ** 2
-    b = pressb / rhob ** 2
-    c = (a + b)
-    c.shape = (c.size, 1)
-    mass.shape = (mass.size, 1)
-    result = -mass * c * dkernel
-    return result
+from equations import eos, continuity, pressure_term
+from kernel import gaussian
+from tools import unit, plot, check_reflect
 
 
 # Parameters
 dim = 2
 ndim = np.array([21, 21])
 
-# Initialize
+# Initialize particle positions (staggered cubic lattice)
 dom = [[0., 2.], [0., 2.]]
 px = np.linspace(0.0, 1.0, ndim[0])
 pz = np.linspace(0.0, 1.0, ndim[1])
