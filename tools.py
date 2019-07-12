@@ -7,7 +7,7 @@ def plot(X, Z, D, domain, step, dt):
     plt.scatter(X, Z, c=D, cmap='viridis_r', alpha=0.6)
     plt.clim(950, 1050)
     plt.colorbar()
-    plt.title("T = {:.4f} s".format(step*dt))
+    plt.title("T = {:.3f} s".format(step*dt))
     plt.xlim(domain[0][0] - 0.1, domain[0][-1] + 0.1)
     plt.ylim(domain[1][0] - 0.1, domain[1][-1] + 0.1)
     plt.savefig("{}/{}.png".format("sim", str(step)), bbox_inches='tight')

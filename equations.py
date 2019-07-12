@@ -3,10 +3,11 @@ import scipy.linalg as lin
 import scipy.spatial as sp
 from kernel import gaussian
 from tools import unit
+import matplotlib.pyplot as plt
 
 
 def eos(rho):
-    c = 10.
+    c = 25.
     gamma = 7.
     rho0 = 1000.
     b = c ** 2 * rho0 / gamma
@@ -31,25 +32,24 @@ def pressure_term(mass, rhoa, pressa, rhob, pressb, dkernel):
     return -mass * c * dkernel
 
 
-def calculate(support, h, N, x0, z0, xv0, zv0, m0, dens0, press0):
+def nnps(support, h, xpos, zpos):
     """
     Performs first step to be able to use leap-frog integration subsequently. Thus, this step will
     consist on integrating just a half-step in time, so we can use the initial conditions for the next step.
     """
-    # Initialize data arrays
-    pos = list(zip(x0, z0))
-    xa = np.zeros(N, dtype=np.float64)
-    za = np.zeros(N, dtype=np.float64)
-    ddens = np.zeros(N, dtype=np.float64)
-
-    # Find nearest neighbours and calculate new density and acceleration
+    pos = list(zip(xpos, zpos))
     kdt = sp.cKDTree(pos)
     max_dist = support * h
     nnp_all = kdt.query_ball_point(kdt.data, max_dist)
-    for i, nbs in enumerate(nnp_all):
+    return nnp_all
+
+
+def calculate_accel(h, N, x0, z0, xv0, zv0, m0, dens0, press0, nn_list):
+    xa = np.zeros(N, dtype=np.float64)
+    za = np.zeros(N, dtype=np.float64)
+    for i, nbs in enumerate(nn_list):
         i_x, i_z = x0[i], z0[i]
         i_xv, i_zv = xv0[i], zv0[i]
-        i_mass = m0[i]
         i_rho = dens0[i]
         i_pressure = press0[i]
 
@@ -64,9 +64,50 @@ def calculate(support, h, N, x0, z0, xv0, zv0, m0, dens0, press0):
         posunit = unit(posdiff, r)
         veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
 
-        kn, dkn = gaussian(r, posunit, h)
-        ddens[i] = sum(continuity(j_mass, veldiff, dkn))
-        acc = sum(pressure_term(j_mass, i_rho, i_pressure, j_rho, j_pressure, dkn)) + np.array([0, -10])
+        kn, dkn, dsp = gaussian(r, posunit, h)
+        acc = sum(pressure_term(j_mass, i_rho, i_pressure, j_rho, j_pressure, dsp)) + np.array([0, -10])
         xa[i] = acc[0]
         za[i] = acc[1]
-    return xa, za, ddens
+    return xa, za
+
+
+def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
+    ddens = np.zeros(N, dtype=np.float64)
+    for i, nbs in enumerate(nn_list):
+        i_x, i_z = x0[i], z0[i]
+        i_xv, i_zv = xv0[i], zv0[i]
+
+        j_x, j_z = x0[nbs], z0[nbs]
+        j_xv, j_zv = xv0[nbs], zv0[nbs]
+        j_mass = m0[nbs]
+
+        posdiff = np.array(list(zip(i_x - j_x, i_z - j_z)))
+        r = lin.norm(posdiff, axis=1)
+        posunit = unit(posdiff, r)
+        veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
+
+        kn, dkn, dsp = gaussian(r, posunit, h)
+        ddens[i] = sum(continuity(j_mass, veldiff, dkn))
+    return ddens
+
+
+def calculate_density(h, x, z, mass, nn_list):
+    dens = np.zeros(mass.size)
+    for i, nbs in enumerate(nn_list):
+        i_x, i_z = x[i], z[i]
+
+        j_x, j_z = x[nbs], z[nbs]
+        j_mass = mass[nbs]
+
+        posdiff = np.array(list(zip(i_x - j_x, i_z - j_z)))
+        r = lin.norm(posdiff, axis=1)
+        posunit = unit(posdiff, r)
+
+        kn, dkn, dsp = gaussian(r, posunit, h)
+        dens[i] = sum(summation_density(j_mass, kn))
+
+        # plt.scatter(x0, z0, c='red')
+        # plt.scatter(j_x, j_z, c='green')
+        # plt.scatter(i_x,i_z, c='blue')
+        # plt.show()
+    return dens

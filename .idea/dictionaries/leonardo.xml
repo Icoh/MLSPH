@@ -9,9 +9,12 @@
       <w>hxacc</w>
       <w>hzacc</w>
       <w>ndim</w>
+      <w>posdiff</w>
+      <w>posunit</w>
       <w>tlim</w>
       <w>vdiff</w>
       <w>vect</w>
+      <w>veldiff</w>
       <w>xacc</w>
       <w>xdiff</w>
       <w>xpos</w>
