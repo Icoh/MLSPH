@@ -1,14 +1,17 @@
 import numpy as np
-from equations import eos, nnps, calculate_continuity, calculate_accel, calculate_density
-from tools import plot, check_reflect
+from equations import eos_tait, nnps, calculate_continuity, calculate_accel, calculate_density
+from tools import check_dir, plot, check_reflect
 from functools import partial
 from time import time
 
 
+check_dir("sim")
 # Parameters
 dim = 2
-ndim = np.array([30, 30])
+ndim = np.array([20, 20])
 dom = [[0., 2], [0., 2]]
+c = 5
+eos = partial(eos_tait, c)
 
 # Initialize particle positions (staggered cubic lattice)
 px = np.linspace(0.0, 1.0, ndim[0])
@@ -33,7 +36,7 @@ N = xpos.size
 
 xvel = np.zeros(N, dtype=np.float64)
 zvel = np.zeros(N, dtype=np.float64)
-mass = 1.22 * np.ones(N, dtype=np.float64)
+mass = 2.85 * np.ones(N, dtype=np.float64)
 density = 1000 * np.ones(N, dtype=np.float64)
 pressure = eos(density)
 
@@ -52,7 +55,7 @@ tlim = 1
 calc_acc = partial(calculate_accel, h, N)
 calc_cont = partial(calculate_continuity, h, N)
 print("Simulating SPH with {} particles.".format(N))
-print("Using  h = {:.5f};  dt = {}".format(h, dt))
+print("Using  h = {:.5f};  dt = {};  c = {}".format(h, dt, c))
 
 time_range = np.arange(dt, tlim, dt)
 tl = time_range.size
@@ -82,6 +85,7 @@ for c, t in enumerate(time_range, 1):
         plot(xpos, zpos, density, dom, c, dt)
         print("> Progress = {:.2f}%".format(t/tlim))
         print("  - Max density =", max(density))
+        print("  - Max neighbours = {}".format(max(map(len, nnp))))
         print("  - Time elapsed = {:.2f}s".format(elapsed))
         print("  - Estimated time left = {:.2f}s".format((tl-c)*elapsed/c))
 

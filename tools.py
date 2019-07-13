@@ -1,5 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+
+
+def check_dir(name):
+    current = os.listdir()
+    if name in current:
+        return
+    print("{} folder not found. Created new one.".format(name))
+    os.mkdir(name)
+    return
 
 
 def plot(X, Z, D, domain, step, dt):

@@ -3,11 +3,9 @@ import scipy.linalg as lin
 import scipy.spatial as sp
 from kernel import gaussian
 from tools import unit
-import matplotlib.pyplot as plt
 
 
-def eos(rho):
-    c = 25.
+def eos_tait(c, rho):
     gamma = 7.
     rho0 = 1000.
     b = c ** 2 * rho0 / gamma
