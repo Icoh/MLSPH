@@ -12,9 +12,9 @@ def check_dir(name):
     return
 
 
-def plot(X, Z, D, domain, step, dt):
+def plot(X, Z, D, domain, step, dt, *args, **kwargs):
     f = plt.figure(figsize=(20, 14))
-    plt.scatter(X, Z, c=D, cmap='viridis_r', alpha=0.6)
+    plt.scatter(X, Z, c=D, cmap='viridis_r', alpha=0.6, *args, **kwargs)
     plt.clim(950, 1050)
     plt.colorbar()
     plt.title("T = {:.3f} s".format(step*dt))

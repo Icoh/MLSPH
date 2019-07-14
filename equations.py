@@ -31,10 +31,6 @@ def pressure_term(mass, rhoa, pressa, rhob, pressb, dkernel):
 
 
 def nnps(support, h, xpos, zpos):
-    """
-    Performs first step to be able to use leap-frog integration subsequently. Thus, this step will
-    consist on integrating just a half-step in time, so we can use the initial conditions for the next step.
-    """
     pos = list(zip(xpos, zpos))
     kdt = sp.cKDTree(pos)
     max_dist = support * h
@@ -62,8 +58,8 @@ def calculate_accel(h, N, x0, z0, xv0, zv0, m0, dens0, press0, nn_list):
         posunit = unit(posdiff, r)
         veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
 
-        kn, dkn, dsp = gaussian(r, posunit, h)
-        acc = sum(pressure_term(j_mass, i_rho, i_pressure, j_rho, j_pressure, dsp)) + np.array([0, -10])
+        kn, dkn = gaussian(r, posunit, h)
+        acc = sum(pressure_term(j_mass, i_rho, i_pressure, j_rho, j_pressure, dkn)) + np.array([0, -10])
         xa[i] = acc[0]
         za[i] = acc[1]
     return xa, za
@@ -84,7 +80,7 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         posunit = unit(posdiff, r)
         veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
 
-        kn, dkn, dsp = gaussian(r, posunit, h)
+        kn, dkn = gaussian(r, posunit, h)
         ddens[i] = sum(continuity(j_mass, veldiff, dkn))
     return ddens
 
@@ -93,6 +89,7 @@ def calculate_density(h, x, z, mass, nn_list):
     dens = np.zeros(mass.size)
     for i, nbs in enumerate(nn_list):
         i_x, i_z = x[i], z[i]
+        i_mass = mass[i]
 
         j_x, j_z = x[nbs], z[nbs]
         j_mass = mass[nbs]
@@ -101,8 +98,9 @@ def calculate_density(h, x, z, mass, nn_list):
         r = lin.norm(posdiff, axis=1)
         posunit = unit(posdiff, r)
 
-        kn, dkn, dsp = gaussian(r, posunit, h)
-        dens[i] = sum(summation_density(j_mass, kn))
+        kn, dkn = gaussian(r, posunit, h)
+        kn0, _ = gaussian(0, 0, h)
+        dens[i] = sum(summation_density(j_mass, kn)) + kn0*i_mass
 
         # plt.scatter(x0, z0, c='red')
         # plt.scatter(j_x, j_z, c='green')
