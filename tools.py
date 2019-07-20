@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import csv
 
 
 def check_dir(name):
@@ -10,6 +11,13 @@ def check_dir(name):
     print("{} folder not found. Created new one.".format(name))
     os.mkdir(name)
     return
+
+
+def save_data(c, xpos, zpos, xvel, zvel, density, xacc, zacc):
+    with open("log/c{}.csv".format(c), "w+") as file:
+        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(["x", "z", "xvel", "zvel", "density", "xacc", "zacc"])
+        writer.writerows(zip(xpos, zpos, xvel, zvel, density, xacc, zacc))
 
 
 def plot(X, Z, D, domain, step, dt, *args, **kwargs):
