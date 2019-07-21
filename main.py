@@ -90,6 +90,7 @@ for c, t in enumerate(time_range, 1):
         print("  - Max neighbours = {}".format(max(map(len, nnp))))
         print("  - Time elapsed = {:.2f}s".format(elapsed))
         print("  - Estimated time left = {:.2f}s".format((tl - c) * elapsed / c))
+    if not c % 10:
         save_data(c, xpos, zpos, xvel, zvel, density, xacc, zacc)
 
     nnp = nnps(support, h, xpos, zpos)
