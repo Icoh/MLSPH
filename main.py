@@ -1,9 +1,9 @@
 import numpy as np
 from equations import eos_tait, nnps, calculate_continuity, calculate_accel, calculate_density
-from tools import check_dir, save_data, plot, check_reflect
+from tools import check_dir, save_data, plot, check_reflect, wall_gen
 from functools import partial
 from time import time
-import csv
+
 
 check_dir("sim")
 check_dir("log")
@@ -14,7 +14,7 @@ C = 30
 eos = partial(eos_tait, C)
 
 # Initialize particle positions (staggered cubic lattice)
-ndim = np.array([20, 40])
+ndim = np.array([15, 30])
 px = np.linspace(0.0, 0.5, ndim[0])
 pz = np.linspace(0.0, 1., ndim[1])
 xsp = (px[-1] - px[0]) / ndim[0]
@@ -31,6 +31,11 @@ for nbs, z in enumerate(pz):
         for i, x in enumerate(px[:-1]):
             xpos.append(x + xsp / 2), zpos.append(z)
 
+# Generate wall of particles:
+xwall, zwall = wall_gen(dom[0], [-zsp, -zsp*2.1], xsp, -zsp)
+xpos = np.concatenate((xpos, xwall), axis=0)
+zpos = np.concatenate((zpos, zwall), axis=0)
+
 # State
 xpos = np.array(xpos)
 zpos = np.array(zpos)
@@ -38,7 +43,7 @@ N = xpos.size
 
 xvel = np.zeros(N, dtype=np.float64)
 zvel = np.zeros(N, dtype=np.float64)
-mass = 0.437 * np.ones(N, dtype=np.float64)
+mass = 0.745 * np.ones(N, dtype=np.float64)
 density = 1000 * np.ones(N, dtype=np.float64)
 pressure = eos(density)
 
@@ -53,7 +58,7 @@ pressure_half = pressure
 support = 3
 h = zsp * 0.8
 dt = 0.00005
-tlim = 1
+tlim = 2
 calc_acc = partial(calculate_accel, h, N)
 calc_cont = partial(calculate_continuity, h, N)
 print("Simulating SPH with {} particles.".format(N))
@@ -61,6 +66,7 @@ print("Using  h = {:.5f};  dt = {};  c = {}".format(h, dt, C))
 time_range = np.arange(dt, tlim, dt)
 tl = time_range.size
 start = time()
+
 
 # Perform first half-step to use leap-frog scheme subsequently. The old values will serve as the previous
 # half-step, while the new values will serve as initial setup.
@@ -77,7 +83,7 @@ pressure = eos(density)
 nnp = nnps(support, h, xpos, zpos)
 sumden = calculate_density(h, xpos, zpos, mass, nnp)
 print("Max neighbours = {}".format(max(map(len, nnp))))
-print("Max density from summation = {:.3f}".format(max(sumden)))
+print("Density range from summation: {:.3f} - {:.3f}".format(min(sumden), max(sumden)))
 plot(xpos, zpos, density, dom, 0, dt, s=size)
 save_data(0, xpos, zpos, xvel, zvel, density, xacc, zacc)
 
@@ -113,5 +119,5 @@ for c, t in enumerate(time_range, 1):
     density = density_half + drho * dt * 0.5
     pressure = eos(density)
 
-    xpos, xvel = check_reflect(xpos, xvel, dom[0])
-    zpos, zvel = check_reflect(zpos, zvel, dom[1])
+    # xpos, xvel = check_reflect(xpos, xvel, dom[0])
+    # zpos, zvel = check_reflect(zpos, zvel, dom[1])

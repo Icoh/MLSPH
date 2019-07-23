@@ -18,11 +18,15 @@
       <w>veldiff</w>
       <w>xacc</w>
       <w>xdiff</w>
+      <w>xdom</w>
       <w>xpos</w>
+      <w>xspacing</w>
       <w>xunit</w>
       <w>xvel</w>
       <w>zacc</w>
+      <w>zdom</w>
       <w>zpos</w>
+      <w>zspacing</w>
       <w>zvel</w>
     </words>
   </dictionary>

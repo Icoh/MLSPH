@@ -45,6 +45,17 @@ def unit(vector, norm):
     return unit_vect
 
 
+def wall_gen(xdom, zdom, xspacing, zspacing):
+    xrange, zrange = np.arange(xdom[0], xdom[1], xspacing), np.arange(zdom[0], zdom[1], zspacing)
+    X, Z = np.meshgrid(xrange, zrange)
+    wall_x = []
+    wall_z = []
+    for x, z in zip(X.ravel(), Z.ravel()):
+        wall_x.append(x)
+        wall_z.append(z)
+    return np.array(wall_x), np.array(wall_z)
+
+
 def damp_reflect(pos, vel, wall):
     damp = 0.75
 
