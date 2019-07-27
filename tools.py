@@ -20,15 +20,15 @@ def save_data(c, xpos, zpos, xvel, zvel, density, xacc, zacc):
         writer.writerows(zip(xpos, zpos, xvel, zvel, density, xacc, zacc))
 
 
-def plot(X, Z, D, domain, step, dt, *args, **kwargs):
+def plot(X, Z, C, domain, step, dt, *args, **kwargs):
     f = plt.figure(figsize=(20, 14))
-    plt.scatter(X, Z, c=D, cmap='viridis_r', alpha=0.6, *args, **kwargs)
-    plt.clim(950, 1050)
+    plt.scatter(X, Z, c=C, cmap='viridis_r', alpha=0.6, *args, **kwargs)
+    plt.clim(0, 50)
     plt.colorbar()
     plt.title("T = {:.3f} s".format(step*dt))
     plt.xlim(domain[0][0] - 0.1, domain[0][-1] + 0.1)
     plt.ylim(domain[1][0] - 0.1, domain[1][-1] + 0.1)
-    plt.savefig("{}/{}.png".format("sim", str(step)), bbox_inches='tight')
+    plt.savefig("{}/{}.png".format("sim", step), bbox_inches='tight')
     plt.close(f)
     return
 
@@ -54,33 +54,3 @@ def wall_gen(xdom, zdom, xspacing, zspacing):
         wall_x.append(x)
         wall_z.append(z)
     return np.array(wall_x), np.array(wall_z)
-
-
-def damp_reflect(pos, vel, wall):
-    damp = 0.75
-
-    quiet = vel == 0.0
-    p_pos = pos
-
-    tb = (pos - wall) / vel
-    pos -= vel * (1 - damp) * tb
-
-    pos = 2 * wall - pos
-    vel = -vel
-    vel *= damp
-
-    vel[quiet] = np.zeros(vel[quiet].size)
-    pos[quiet] = p_pos[quiet]
-    return pos, vel
-
-
-def check_reflect(pos, vel, domain):
-    lower = domain[0]
-    upper = domain[1]
-    islower = pos < lower
-    isupper = pos > upper
-    if any(islower):
-        pos[islower], vel[islower] = damp_reflect(pos[islower], vel[islower], lower)
-    if any(isupper):
-        pos[isupper], vel[isupper] = damp_reflect(pos[isupper], vel[isupper], upper)
-    return pos, vel
