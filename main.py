@@ -65,7 +65,7 @@ pressure_half = pressure
 support = 3
 h = zsp * 0.8
 dt = 0.00005
-tlim = 1.5
+tlim = 1.
 calc_acc = partial(calculate_accel, h, N_all)
 calc_cont = partial(calculate_continuity, h, N_all)
 print("Simulating SPH with {} particles.".format(N))
@@ -91,7 +91,7 @@ sumden = calculate_density(h, xpos, zpos, mass, nnp)[real_particles]
 # density[real_particles] = sumden
 print("Neighbours count range: {} - {}".format(min(map(len, nnp)), max(map(len, nnp))))
 print("Density range from summation: {:.3f} - {:.3f}".format(min(sumden), max(sumden)))
-plot(xpos, zpos, (xvel**2+zvel**2)**0.5, dom, 0, dt, s=size)
+plot(xpos, zpos, density, dom, 0, dt, s=size)
 save_data(0, xpos, zpos, xvel, zvel, density, xacc, zacc)
 
 for c, t in enumerate(time_range, 1):
@@ -126,6 +126,3 @@ for c, t in enumerate(time_range, 1):
     drho = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
     density = density_half + drho * dt * 0.5
     pressure = eos(density)
-
-    # xpos, xvel = check_reflect(xpos, xvel, dom[0])
-    # zpos, zvel = check_reflect(zpos, zvel, dom[1])

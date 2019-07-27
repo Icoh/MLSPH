@@ -7,19 +7,21 @@ import os
 import h5py
 
 
-def pos_to_index(domain, im_array, pos_list, value_list):
+def generate_cnn_data(domain, pos_list, vel_list, size=(64, 64)):
     xdom = domain[0]
     ydom = domain[1]
-    height, width = im_array.shape
+    height, width = size
     xr = np.linspace(xdom[0], xdom[1], width)
-    yr = np.linspace(ydom[0], ydom[1], height)
+    zr = np.linspace(ydom[0], ydom[1], height)
 
+    im = np.zeros((height, width, 2))
     for n, pos in enumerate(pos_list):
-        x, y = pos
+        x, z = pos
+        vx, vz = vel_list[n]
         i = np.argmin(abs(xr-x))
-        j = np.argmin(abs(yr-y))
-        im_array[j, i] = value_list[n]
-    return im_array
+        j = np.argmin(abs(zr-z))
+        im[j, i] = vx, vz
+    return im
 
 
 def run():
@@ -45,11 +47,8 @@ def run():
         print("   Done!")
         df.to_hdf("./data/datafile", key='simulation', mode="w")
 
-    pos = df[["x", "z"]].values
-    pos = np.array(list(zip(pos[:, 0], pos[:, 1]))).reshape(n_files, N, 2)
-    vel = df[["xvel", "zvel"]].values
-    vel = ((vel[:, 0]**2 + vel[:, 1]**2)**0.5).reshape(n_files, N)
-    vel = preprocessing.normalize(vel)
+    pos = df[["x", "z"]].values.reshape(n_files, N, 2)
+    vel = df[["xvel", "zvel"]].values.reshape(n_files, N, 2)
     labels = df["density"].values
 
     print("pos.shape: ", pos.shape)
@@ -63,21 +62,19 @@ def run():
     files = os.listdir(cnn_data_dir)
     if filename not in files:
         hf = h5py.File("{}/{}".format(cnn_data_dir, filename), 'w')
-        hf.create_dataset('shape', data=[n_files, N, ])
-        hf.create_dataset('labels', data=labels)
-        sim_data = []
+        ims = list()
         for i, vals in enumerate(zip(pos, vel)):
             p, v = vals
-            im = np.zeros((100, 100))
-            im = pos_to_index(dom, im, p, v)
-            sim_data.append(im)
+            im = generate_cnn_data(dom, p, v)
+            ims.append(im)
             # f = plt.figure(figsize=(20, 14))
             # plt.imshow(im, cmap="GnBu", origin="lower")
             # plt.axis('off')
             # plt.savefig("cnn_data_ims/{}/{}.png".format(im.shape[0], i), bbox_inches='tight')
             # plt.close(f)
-        sim_data = np.array(sim_data)
-        hf.create_dataset('features', data=sim_data)
+        hf.create_dataset('velocity', data=ims)
+        hf.create_dataset('density', data=labels)
+        hf.create_dataset('number_of_particles', data=N)
         print("Created", hf)
         hf.close()
     else:

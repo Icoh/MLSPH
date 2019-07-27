@@ -23,7 +23,7 @@ def save_data(c, xpos, zpos, xvel, zvel, density, xacc, zacc):
 def plot(X, Z, C, domain, step, dt, *args, **kwargs):
     f = plt.figure(figsize=(20, 14))
     plt.scatter(X, Z, c=C, cmap='viridis_r', alpha=0.6, *args, **kwargs)
-    plt.clim(0, 50)
+    plt.clim(980, 1080)
     plt.colorbar()
     plt.title("T = {:.3f} s".format(step*dt))
     plt.xlim(domain[0][0] - 0.1, domain[0][-1] + 0.1)
