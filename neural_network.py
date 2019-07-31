@@ -1,86 +1,127 @@
 import numpy as np
-import pandas as pd
-from sklearn.model_selection import train_test_split
-import tensorflow as tf
-import matplotlib.pyplot as plt
-import os
-
-data_dir = "./log_dam/"
-files = os.listdir(data_dir)
-files = sorted(files, key=lambda x: float(x.split("c")[1]))
-print("Found {} files.".format(len(files)))
-df = pd.read_csv(data_dir + files[0])
-N, n_data = df.shape
-print("Reading files...".format(files[0]), end='')
-for path in files[1:]:
-    dft = pd.read_csv(data_dir + path)
-    df = df.append(dft)
-print("   Done!")
-print("Data from {} particles with {} values each.".format(N, n_data))
-print("Total data shape {}".format(df.shape))
-
-features = ["x", "xvel", "density"]
-labels = "xacc"
-features_df = df[features]
-labels_df = df[labels]
-
-X = features_df.values.reshape((len(files), N * 3))
-y = labels_df.values.reshape((len(files), N))
-X = X[1:]
-y = y[:-1]
-print("X shape:", X.shape)
-print("y shape:", y.shape)
-
-# We will use 70% of the data for training and 30% for testing.
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-print("X_train shape:", X_train.shape)
-print("y_train shape:", y_train.shape)
-
-feats = pd.DataFrame(X_train, columns=[str(i) for i in range(X_train.shape[1])])
-labels = pd.DataFrame(y_train, columns=[str(i) for i in range(y_train.shape[1])])
-f_test = pd.DataFrame(X_test, columns=[str(i) for i in range(X_train.shape[1])])
-l_test = pd.DataFrame(y_test, columns=[str(i) for i in range(y_train.shape[1])])
+from equations import eos_tait, nnps, calculate_continuity, calculate_accel, calculate_density
+from tools import check_dir, save_data, plot, wall_gen
+from functools import partial
+from time import time
+from tensorflow.contrib.keras import models
+import state_image as sti
 
 
-# Make Input Function
-def input_fn():
-    feat_dataset = tf.data.Dataset.from_tensor_slices(dict(feats))
-    lab_dataset = tf.data.Dataset.from_tensor_slices(labels.values)
-    dataset = tf.data.Dataset.zip((feat_dataset, lab_dataset))
-    dataset = dataset.batch(1)
-    return dataset
+check_dir("sim")
+check_dir("log")
+# Parameters
+im_size = (-1, 78, 78, 4)
+dim = 2
+dom = [[0., 2], [0., 2]]
+C = 50
+eos = partial(eos_tait, C)
 
+# Initialize particle positions (staggered cubic lattice)
+ndim = np.array([15, 30])
+px = np.linspace(0.0, 0.5, ndim[0])
+pz = np.linspace(0.0, 1., ndim[1])
+xsp = (px[-1] - px[0]) / ndim[0]
+zsp = (pz[-1] - pz[0]) / ndim[1]
+size = (600 * xsp)**1.5
 
-# Make Input Function
-def eval_input_fn():
-    feat_dataset = tf.data.Dataset.from_tensor_slices(dict(f_test))
-    lab_dataset = tf.data.Dataset.from_tensor_slices(l_test.values)
-    dataset = tf.data.Dataset.zip((feat_dataset, lab_dataset))
-    dataset = dataset.batch(1)
-    return dataset
+xpos, zpos = np.meshgrid(px, pz)
+xpos, zpos = xpos.ravel(), zpos.ravel()
+N = xpos.size
 
+# Generate wall of particles:
+w1 = wall_gen([dom[0][0]-2*xsp, dom[0][1]+2*xsp], [-zsp * 2.1, -zsp], xsp, zsp)
+w4 = wall_gen([dom[0][0]-2*xsp, dom[0][1]+2*xsp], [dom[1][1], dom[1][1]+1.9*zsp], xsp, zsp)
+w2 = wall_gen([-xsp, -2.1 * xsp], dom[1], -xsp, zsp)
+w3 = wall_gen([dom[0][1] + xsp, dom[0][1] + xsp * 2], dom[1], xsp, zsp)
+xwall = np.concatenate((w1[0], w2[0], w3[0], w4[0]), axis=0)
+zwall = np.concatenate((w1[1], w2[1], w3[1], w4[1]), axis=0)
 
-# Make Feature Columns
-feature_columns = []
-for key in feats.keys():
-    feature_columns.append(tf.feature_column.numeric_column(key=key))
-# feature_columns = [tf.feature_column.numeric_column("x", shape=[N*3], dtype=tf.float32)]
+real_particles = np.array([True for _ in xpos] + [False for _ in xwall])
+xpos = np.concatenate((xpos, xwall), axis=0)
+zpos = np.concatenate((zpos, zwall), axis=0)
 
-MODEL_PATH = './DNNRegressors/'
-hidden_layers = [16, 16]
-dropout = 0.0
+# State
+N_all = xpos.size
+xvel = np.zeros(N_all, dtype=np.float64)
+zvel = np.zeros(N_all, dtype=np.float64)
+mass = 0.77 * np.ones(N_all, dtype=np.float64)
+density = 1000 * np.ones(N_all, dtype=np.float64)
+pressure = eos(density)
 
-# Define DNN Regressor Model
-model = tf.estimator.DNNRegressor(feature_columns=feature_columns,
-                                  label_dimension=N,
-                                  hidden_units=hidden_layers,
-                                  optimizer='Adam',
-                                  model_dir=MODEL_PATH)
+xpos_half = xpos
+zpos_half = zpos
+xvel_half = xvel
+zvel_half = zvel
+density_half = density
+pressure_half = pressure
 
-# Train the DNN Regressor Estimator
-r = model.train(input_fn=input_fn, steps=1000)
-print("Training done!")
-# Evaluate the Model
-validation_metrics = {"MSE": tf.contrib.metrics.streaming_mean_squared_error}
-metrics = model.evaluate(input_fn=eval_input_fn)
-print(metrics)
+# Run simulation
+model = models.load_model('model.h5')
+support = 3
+h = zsp * 0.8
+dt = 0.00005
+tlim = 1.
+calc_acc = partial(calculate_accel, h, N_all)
+calc_cont = partial(calculate_continuity, h, N_all)
+print("Simulating SPH with {} particles.".format(N))
+print("Using  h = {:.5f};  dt = {};  c = {}".format(h, dt, C))
+time_range = np.arange(dt, tlim, dt)
+tl = time_range.size
+start = time()
+
+# Perform first half-step to use leap-frog scheme subsequently. The old values will serve as the previous
+# half-step, while the new values will serve as initial setup.
+nnp = nnps(support, h, xpos, zpos)[real_particles]
+xacc, zacc = calc_acc(xpos, zpos, xvel, zvel, mass, density, pressure, nnp)
+drho = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
+xpos = xpos + xvel * dt * 0.5
+zpos = zpos + zvel * dt * 0.5
+xvel = xvel + xacc * dt * 0.5
+zvel = zvel + zacc * dt * 0.5
+density = density + drho * dt * 0.5
+pressure = eos(density)
+
+nnp = nnps(support, h, xpos, zpos)[real_particles]
+sumden = calculate_density(h, xpos, zpos, mass, nnp)[real_particles]
+# density[real_particles] = sumden
+print("Neighbours count range: {} - {}".format(min(map(len, nnp)), max(map(len, nnp))))
+print("Density range from summation: {:.3f} - {:.3f}".format(min(sumden), max(sumden)))
+plot(xpos, zpos, density, dom, 0, dt, s=size)
+# save_data(0, xpos, zpos, xvel, zvel, density, xacc, zacc)
+
+for c, t in enumerate(time_range, 1):
+    if not c % 10:
+        elapsed = time() - start
+        plot(xpos, zpos, density, dom, c, dt, s=size)
+        nnsize = list(map(len, nnp))
+        print("> Progress = {:.2f}%".format(t / tlim * 100))
+        print("  - Density range: {:.3f} - {:.3f}".format(min(density), max(density)))
+        print("  - Neighbours count range: {} - {}".format(min(nnsize), max(nnsize)))
+        print("  - Time elapsed = {:.2f}s".format(elapsed))
+        print("  - ETA = {:.2f}s".format((tl - c) * elapsed / c))
+    # if not c % 10:
+    #     save_data(c, xpos, zpos, xvel, zvel, density, xacc, zacc)
+
+    nnp = nnps(support, h, xpos, zpos)[real_particles]
+    # Leapfrog scheme: first integrate from previous halfstep, then use this in integrate once again.
+    xacc, zacc = calc_acc(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half, nnp)
+    xpos_half = xpos + xvel * dt * 0.5
+    zpos_half = zpos + zvel * dt * 0.5
+    xvel_half = xvel + xacc * dt * 0.5
+    zvel_half = zvel + zacc * dt * 0.5
+    state = sti.generate_cnn_data(dom, zip(xpos_half, zpos_half),
+                                  list(zip(xvel_half, zvel_half)), size=im_size[1:3]).reshape(*im_size)
+    drho[real_particles] = model.predict(state)[0][real_particles]
+    density_half = density + drho * dt * 0.5
+    pressure_half = eos(density_half)
+
+    xacc, zacc = calc_acc(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half, nnp)
+    xvel = xvel + xacc * dt
+    zvel = zvel + zacc * dt
+    xpos = xpos_half + xvel * dt * 0.5
+    zpos = zpos_half + zvel * dt * 0.5
+    state = sti.generate_cnn_data(dom, zip(xpos, zpos),
+                                  list(zip(xvel, zvel)), size=im_size[1:3]).reshape(*im_size)
+    drho = model.predict(state)[0]
+    density = density_half + drho * dt * 0.5
+    pressure = eos(density)

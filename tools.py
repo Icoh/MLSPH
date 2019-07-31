@@ -13,17 +13,21 @@ def check_dir(name):
     return
 
 
-def save_data(c, xpos, zpos, xvel, zvel, density, xacc, zacc):
-    with open("log/c{}.csv".format(c), "w+") as file:
+def save_data(c, xpos, zpos, xvel, zvel, density, xacc, zacc, drho):
+    with open("log/features/f{}.csv".format(c), "w+") as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(["x", "z", "xvel", "zvel", "density", "xacc", "zacc"])
-        writer.writerows(zip(xpos, zpos, xvel, zvel, density, xacc, zacc))
+        writer.writerow(["x", "z", "xvel", "zvel"])
+        writer.writerows(zip(xpos, zpos, xvel, zvel))
+    with open("log/labels/l{}.csv".format(c), "w+") as file:
+        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(["density", "xacc", "zacc", 'drho'])
+        writer.writerows(zip(density, xacc, zacc, drho))
 
 
 def plot(X, Z, C, domain, step, dt, *args, **kwargs):
     f = plt.figure(figsize=(20, 14))
     plt.scatter(X, Z, c=C, cmap='viridis_r', alpha=0.6, *args, **kwargs)
-    plt.clim(980, 1080)
+    plt.clim(940, 1060)
     plt.colorbar()
     plt.title("T = {:.3f} s".format(step*dt))
     plt.xlim(domain[0][0] - 0.1, domain[0][-1] + 0.1)
@@ -46,10 +50,10 @@ def unit(vector, norm):
 
 
 def wall_gen(xdom, zdom, xspacing, zspacing):
-    xrange, zrange = np.arange(xdom[0], xdom[1], xspacing), np.arange(zdom[0], zdom[1], zspacing)
+    xrange = np.arange(xdom[0], xdom[1]+0.9*xspacing, xspacing)
+    zrange = np.arange(zdom[0], zdom[1]+0.9*zspacing, zspacing)
     X, Z = np.meshgrid(xrange, zrange)
-    wall_x = []
-    wall_z = []
+    wall_x, wall_z = list(), list()
     for x, z in zip(X.ravel(), Z.ravel()):
         wall_x.append(x)
         wall_z.append(z)

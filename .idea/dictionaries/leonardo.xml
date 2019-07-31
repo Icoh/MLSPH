@@ -2,16 +2,23 @@
   <dictionary name="leonardo">
     <words>
       <w>accel</w>
+      <w>convolutional</w>
       <w>ddens</w>
+      <w>dkernel</w>
       <w>drho</w>
       <w>dspiky</w>
       <w>hdrho</w>
       <w>hxacc</w>
       <w>hzacc</w>
       <w>ndim</w>
+      <w>nnps</w>
       <w>nnsize</w>
       <w>posdiff</w>
       <w>posunit</w>
+      <w>pressa</w>
+      <w>pressb</w>
+      <w>rhoa</w>
+      <w>rhob</w>
       <w>sumden</w>
       <w>tlim</w>
       <w>vdiff</w>
@@ -24,6 +31,7 @@
       <w>xspacing</w>
       <w>xunit</w>
       <w>xvel</w>
+      <w>ydom</w>
       <w>zacc</w>
       <w>zdom</w>
       <w>zpos</w>
