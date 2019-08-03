@@ -5,6 +5,7 @@ from tools import check_dir
 import matplotlib.pyplot as plt
 import os
 import h5py
+import re
 
 
 def generate_cnn_data(domain, pos_list, vel_list, size=(64, 64)):
@@ -40,38 +41,53 @@ def run(plot=False, *args, **kwags):
     features_path = "./cnn_files/features/"
     data_path = "./cnn_files/cnn_data/"
     hdf_name = "datafile"
-    lb_data = os.listdir(labels_path)
-    ft_data = os.listdir(features_path)
+    lb_files = os.listdir(labels_path)
+    ft_files = os.listdir(features_path)
+    ft_files = sorted(ft_files, key=lambda x: float(re.findall('\d+', x)[0]))
+    lb_files = sorted(lb_files, key=lambda x: float(re.findall('\d+', x)[0]))
+    n_files = len(lb_files)
     if hdf_name in os.listdir(data_path):
-        df = pd.read_csv(data_path + files[0])
-        N, n_values = df.shape
+        df_labels = pd.read_csv(labels_path + lb_files[0])
+        df_features = pd.read_csv(features_path + ft_files[0])
+        N_lab, lb_values = df_labels.shape
+        N_feat, ft_values = df_features.shape
         print("Found HDF5 raw data file.")
         hf = h5py.File(data_path + hdf_name, mode="r")
-        data = np.array(hf.get('simulation'))
-        df = pd.DataFrame(data, columns=["x", "z", "xvel", "zvel", "density", "xacc", "zacc", 'drho'])
+        feats = np.array(hf.get('features'))
+        labs = np.array(hf.get('labels'))
+        df_labels = pd.DataFrame(labs, columns=["density", "xacc", "zacc", 'drho'])
+        df_features = pd.DataFrame(feats, columns=["x", "z", "xvel", "zvel"])
         hf.close()
     else:
-        files = sorted(files, key=lambda x: float(x.split("c")[1]))
         print("Found {} files.".format(n_files))
-        print("Reading {} files...".format(files[0]))
-        file = pd.read_csv(data_path + files[0]).values
-        N, n_values = file.shape
-        data = np.zeros((n_files*N, n_values))
-        data[:N] = file
-        for i, path in enumerate(files[1:], 1):
+        print("Reading {} files...".format(n_files*2))
+        lab0 = pd.read_csv(labels_path + lb_files[0])
+        feat0 = pd.read_csv(features_path + ft_files[0])
+        N_lab, lb_values = lab0.shape
+        N_feat, ft_values = feat0.shape
+        labs = np.zeros((n_files*N_lab, lb_values))
+        feats = np.zeros((n_files*N_feat, ft_values))
+        labs[:N_lab], feats[:N_feat] = lab0, feat0
+        for i, path in enumerate(ft_files[1:], 1):
             if not i % 100:
                 print(i, "/", n_files)
-            data[i*N:(i+1)*N] = pd.read_csv(data_path + path).values
+            feats[i*N_feat:(i+1)*N_feat] = pd.read_csv(features_path + path).values
+        for i, path in enumerate(lb_files[1:], 1):
+            if not i % 100:
+                print(i, "/", n_files)
+            labs[i*N_lab:(i+1)*N_lab] = pd.read_csv(labels_path + path).values
         print("   Done!")
         hf = h5py.File(data_path+hdf_name, mode="w")
-        hf.create_dataset('simulation', data=data)
+        hf.create_dataset('features', data=feats)
+        hf.create_dataset('labels', data=labs)
         hf.close()
         print("Dataset created as HDF5 file.")
-        df = pd.DataFrame(data, columns=["x", "z", "xvel", "zvel", "density", "xacc", "zacc", 'drho'])
+        df_labels = pd.DataFrame(labs, columns=["density", "xacc", "zacc", 'drho'])
+        df_features = pd.DataFrame(feats, columns=["x", "z", "xvel", "zvel"])
 
-    pos = df[["x", "z"]].values.reshape(n_files, N, 2)
-    vel = df[["xvel", "zvel"]].values.reshape(n_files, N, 2)
-    labels = df["drho"].values
+    pos = df_features[["x", "z"]].values.reshape(n_files, N_feat, 2)
+    vel = df_features[["xvel", "zvel"]].values.reshape(n_files, N_feat, 2)
+    drho = df_labels["drho"].values
 
     print("pos.shape: ", pos.shape)
     print("vel.shape: ", vel.shape)
@@ -79,7 +95,7 @@ def run(plot=False, *args, **kwags):
     dom = [[0., 2], [0., 2]]
 
     cnn_data_dir = "./cnn_files/cnn_data"
-    filename = "simulation"
+    filename = "training"
     hf = h5py.File("{}/{}".format(cnn_data_dir, filename), 'w')
     size = (78, 78)
     ims = np.zeros((n_files, size[0], size[1], 4))
@@ -94,8 +110,8 @@ def run(plot=False, *args, **kwags):
         print("Generating images...")
         save_image(ims, *args, **kwags)
     hf.create_dataset('features', data=ims)
-    hf.create_dataset('labels', data=labels)
-    hf.create_dataset('number_of_particles', data=N)
+    hf.create_dataset('labels', data=drho)
+    hf.create_dataset('number_of_particles', data=N_lab)
     print("Created", hf)
     hf.close()
     return

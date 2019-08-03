@@ -9,7 +9,7 @@ import h5py
 
 data_dir = "./cnn_files/cnn_data/"
 files = os.listdir(data_dir)
-hdf_name = "simulation"
+hdf_name = "training"
 if hdf_name not in files:
     print("Executing state_image.py first!")
     sti.run(plot=False, skip=100)
@@ -41,16 +41,15 @@ print("y_train shape:", y_train.shape)
 
 # Define Convolutional Network Model
 model = models.Sequential()
-model.add(layers.Conv2D(16, (5, 5), activation='elu',  input_shape=(im_size, im_size, channels)))
-# model.add(layers)
+model.add(layers.Conv2D(16, (3, 3), activation='elu',  input_shape=(im_size, im_size, channels)))
 model.add(layers.MaxPooling2D((2, 2)))
-model.add(layers.Conv2D(16, (1, 1), activation='elu'))
+model.add(layers.Conv2D(16, (3, 3), activation='elu'))
 model.add(layers.MaxPooling2D((2, 2)))
 
-model.add(layers.Dropout(0.25))
+# model.add(layers.Dropout(0.25))
 model.add(layers.Flatten())
-model.add(layers.Dense(int(1.5*N), activation='elu'))
-model.add(layers.Dropout(0.5))
+model.add(layers.Dense(int(2*N), activation='elu'))
+# model.add(layers.Dropout(0.25))
 model.add(layers.Dense(N, activation='linear'))
 
 model.summary()
@@ -60,7 +59,7 @@ model.compile(optimizer='adam',
               loss='mean_squared_error',
               metrics=['mean_absolute_error', 'mean_absolute_percentage_error'])
 
-history = model.fit(X_train, y_train, epochs=10, batch_size=64,
+history = model.fit(X_train, y_train, epochs=10, batch_size=32,
                     callbacks=[early_stop], validation_data=(X_test, y_test))
 
 model.evaluate(X_test, y_test)
