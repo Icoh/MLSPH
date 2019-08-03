@@ -44,8 +44,8 @@ def unit(vector, norm):
     nm.shape = (nm.size, 1)
 
     unit_vect = vector / nm
-    nans = np.isnan(unit_vect)
-    unit_vect[nans] = [0, 0]
+    # nans = np.isnan(unit_vect)
+    # unit_vect[nans] = np.zeros(1)
     return unit_vect
 
 

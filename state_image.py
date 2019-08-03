@@ -8,13 +8,12 @@ import h5py
 import re
 
 
-def generate_cnn_data(domain, pos_list, vel_list, size=(64, 64)):
-    xdom = domain[0]
-    ydom = domain[1]
+def generate_cnn_data(pos_list, vel_list, size=(64, 64)):
     height, width = size
-    xr = np.linspace(xdom[0], xdom[1], width)
-    zr = np.linspace(ydom[0], ydom[1], height)
-
+    xmin, zmin = min(pos_list[:,0]), min(pos_list[:,1])
+    xmax, zmax = max(pos_list[:,0]), max(pos_list[:,1])
+    xr = np.linspace(xmin, xmax, width)
+    zr = np.linspace(zmin, zmax, height)
     im = np.zeros((height, width, 4))
     for n, pos in enumerate(pos_list):
         x, z = pos
@@ -22,6 +21,14 @@ def generate_cnn_data(domain, pos_list, vel_list, size=(64, 64)):
         i = np.argmin(abs(xr - x))
         j = np.argmin(abs(zr - z))
         im[j, i] = x, z, vx, vz
+    return im
+
+
+def generate_cnn_array(size, pos, vel):
+    height, width = size
+    pos_vel = list(zip(pos,vel))
+    im = np.zeros((height, width, 4))
+    im = np.array(pos_vel).reshape((height, width, 4))
     return im
 
 
@@ -96,19 +103,19 @@ def run(plot=False, *args, **kwags):
 
     cnn_data_dir = "./cnn_files/cnn_data"
     filename = "training"
-    hf = h5py.File("{}/{}".format(cnn_data_dir, filename), 'w')
-    size = (78, 78)
+    size = (64, 64)
     ims = np.zeros((n_files, size[0], size[1], 4))
     print("Generating data for CNN.")
     for i, vals in enumerate(zip(pos, vel)):
         if not i % 100:
             print(i, '/', n_files)
         p, v = vals
-        im = generate_cnn_data(dom, p, v, size)
+        im = generate_cnn_data(p, v)
         ims[i] = im
     if plot:
         print("Generating images...")
         save_image(ims, *args, **kwags)
+    hf = h5py.File("{}/{}".format(cnn_data_dir, filename), 'w')
     hf.create_dataset('features', data=ims)
     hf.create_dataset('labels', data=drho)
     hf.create_dataset('number_of_particles', data=N_lab)

@@ -109,7 +109,7 @@ for c, t in enumerate(time_range, 1):
     zpos_half = zpos + zvel * dt * 0.5
     xvel_half = xvel + xacc * dt * 0.5
     zvel_half = zvel + zacc * dt * 0.5
-    state = sti.generate_cnn_data(dom, zip(xpos_half, zpos_half),
+    state = sti.generate_cnn_array(dom, zip(xpos_half, zpos_half),
                                   list(zip(xvel_half, zvel_half)), size=im_size[1:3]).reshape(*im_size)
     drho[real_particles] = model.predict(state)[0][real_particles]
     density_half = density + drho * dt * 0.5

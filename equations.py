@@ -35,6 +35,8 @@ def nnps(support, h, xpos, zpos):
     kdt = sp.cKDTree(pos)
     max_dist = support * h
     nnp_all = kdt.query_ball_point(kdt.data, max_dist)
+    for i, nbs in enumerate(nnp_all):
+        nbs.remove(i)
     return nnp_all
 
 
