@@ -9,7 +9,7 @@ import h5py
 
 data_dir = "./cnn_files/cnn_data/"
 files = os.listdir(data_dir)
-hdf_name = "training"
+hdf_name = "datafile"
 if hdf_name not in files:
     print("Executing state_image.py first!")
     sti.run(plot=False, skip=100)
@@ -18,51 +18,49 @@ else:
 print("Starting CNN...")
 
 hf = h5py.File(data_dir + hdf_name, 'r')
-features = np.array(hf.get('features'))
-labels = np.array(hf.get('labels'))
-N = np.array(hf.get('number_of_particles'))
-n_files, im_height, im_width, channels = features.shape
+pos = np.array(hf.get('posdiff'))
+vel = np.array(hf.get('veldiff'))
+drho = np.array(hf.get('drho'))
 hf.close()
 
-print("Feature file shape {}".format(features.shape))
-print("Labels file shape {}".format(labels.shape))
-print("Image size: {}x{}".format(im_height, im_width))
-print("Nb. of files:{}. Nb. of particles:{}. Nb. of channels:{}.".format(n_files, N, channels))
-
-X = features.reshape((n_files, im_height, im_width, channels))
-y = labels.reshape(n_files, N)
-
 # Use 90% of data for training
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
-print("Reshaped features and labels.")
-print("X_train shape:", X_train.shape)
-print("y_train shape:", y_train.shape)
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+# print("Reshaped features and labels.")
+# print("X_train shape:", X_train.shape)
+# print("y_train shape:", y_train.shape)
 
+n_data, n_nbs = pos.shape
 
-# Define Convolutional Network Model
-model = models.Sequential()
-model.add(layers.Conv2D(32, (5, 5), activation='elu',  input_shape=(im_height, im_width, channels)))
-model.add(layers.MaxPooling2D((2, 2)))
-model.add(layers.Conv2D(64, (1, 1), activation='elu'))
-model.add(layers.MaxPooling2D((2, 2)))
+# Define Neural Network Model
+in_pos = layers.Input(shape=(n_nbs,))
+x = layers.Dense(128, activation='relu', name='pos1')(in_pos)
+x = layers.Dense(256, activation='relu', name='pos2')(x)
+x = layers.BatchNormalization()(x)
+x = layers.Dense(256, activation='relu', name='pos3')(x)
 
-# model.add(layers.Dropout(0.25))
-model.add(layers.Flatten())
-model.add(layers.Dense(int(2*N), activation='elu'))
-# model.add(layers.Dropout(0.25))
-# model.add(layers.Dense(int(1.5*N), activation='elu'))
-model.add(layers.Dense(N, activation='linear'))
+in_vel = layers.Input(shape=(n_nbs,))
+v = layers.Dense(128, activation='relu', name='vel1')(in_vel)
+v = layers.Dense(256, activation='relu', name='vel2')(v)
+v = layers.BatchNormalization()(v)
+v = layers.Dense(256, activation='relu', name='vel3')(v)
 
+xv = layers.Concatenate()([x, v])
+xv = layers.Dense(256, activation='relu', name='merge1')(xv)
+xv = layers.BatchNormalization()(xv)
+xv = layers.Dense(128, activation='relu', name='merge2')(xv)
+out = layers.Dense(1, activation='linear')(xv)
+
+model = models.Model(inputs=[in_pos, in_vel], outputs=out)
+tf.contrib.keras.utils.plot_model(model, to_file='multilayer_perceptron_graph.png')
 model.summary()
-
-early_stop = callbacks.EarlyStopping(monitor='mean_absolute_error', patience=3)
+early_stop = callbacks.EarlyStopping(monitor='mean_absolute_error', patience=5)
 model.compile(optimizer='adam',
               loss='mean_squared_error',
               metrics=['mean_absolute_error', 'mean_absolute_percentage_error'])
 
-history = model.fit(X_train, y_train, epochs=100, batch_size=32,
-                    callbacks=[early_stop], validation_data=(X_test, y_test))
+history = model.fit([pos, vel], drho, epochs=50, batch_size=128,
+                    callbacks=[early_stop])
 
-model.evaluate(X_test, y_test)
+index = -100
+model.evaluate([[pos[index]], [vel[index]]], [drho[index]])
 model.save("model.h5")
-
