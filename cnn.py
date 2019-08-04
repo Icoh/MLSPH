@@ -18,39 +18,34 @@ else:
 print("Starting CNN...")
 
 hf = h5py.File(data_dir + hdf_name, 'r')
-pos = np.array(hf.get('posdiff'))
-vel = np.array(hf.get('veldiff'))
-drho = np.array(hf.get('drho'))
+n_data, n_nbs = np.array(hf.get('shape'))
+print("NB count:", n_nbs)
+print("Preparing features and labels...")
+n_data = 1000
+X = np.zeros((n_data, n_nbs, 2))
+X[:, :, 0] = np.array(hf.get('posdiff'))[:n_data]
+X[:, :, 1] = np.array(hf.get('veldiff'))[:n_data]
+y = list(np.array(hf.get('drho'))[:50].ravel())
 hf.close()
+X = list(X[:,1,:].reshape(20, -1, 2))
 
-# Use 90% of data for training
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+# # Use 90% of data for training
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 # print("Reshaped features and labels.")
 # print("X_train shape:", X_train.shape)
 # print("y_train shape:", y_train.shape)
 
-n_data, n_nbs = pos.shape
 
 # Define Neural Network Model
-in_pos = layers.Input(shape=(n_nbs,))
-x = layers.Dense(128, activation='relu', name='pos1')(in_pos)
-x = layers.Dense(256, activation='relu', name='pos2')(x)
-x = layers.BatchNormalization()(x)
-x = layers.Dense(256, activation='relu', name='pos3')(x)
+inputs, hidden = list(), list()
+for n in range(n_nbs):
+    inputs.append(layers.Input(shape=(2,)))
+    hidden.append(layers.Dense(10, activation='relu')(inputs[n]))
+x = layers.Concatenate()(hidden)
+x = layers.Dense(100, activation='relu')(x)
+out = layers.Dense(1, activation='linear')(x)
 
-in_vel = layers.Input(shape=(n_nbs,))
-v = layers.Dense(128, activation='relu', name='vel1')(in_vel)
-v = layers.Dense(256, activation='relu', name='vel2')(v)
-v = layers.BatchNormalization()(v)
-v = layers.Dense(256, activation='relu', name='vel3')(v)
-
-xv = layers.Concatenate()([x, v])
-xv = layers.Dense(256, activation='relu', name='merge1')(xv)
-xv = layers.BatchNormalization()(xv)
-xv = layers.Dense(128, activation='relu', name='merge2')(xv)
-out = layers.Dense(1, activation='linear')(xv)
-
-model = models.Model(inputs=[in_pos, in_vel], outputs=out)
+model = models.Model(inputs=inputs, outputs=out)
 tf.contrib.keras.utils.plot_model(model, to_file='multilayer_perceptron_graph.png')
 model.summary()
 early_stop = callbacks.EarlyStopping(monitor='mean_absolute_error', patience=5)
@@ -58,9 +53,7 @@ model.compile(optimizer='adam',
               loss='mean_squared_error',
               metrics=['mean_absolute_error', 'mean_absolute_percentage_error'])
 
-history = model.fit([pos, vel], drho, epochs=50, batch_size=128,
-                    callbacks=[early_stop])
+history = model.fit(X, y, epochs=50, batch_size=32, callbacks=[early_stop])
 
 index = -100
-model.evaluate([[pos[index]], [vel[index]]], [drho[index]])
 model.save("model.h5")

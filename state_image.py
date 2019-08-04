@@ -52,8 +52,8 @@ def run(plot=False, *args, **kwags):
 
     print("drho")
     for i, path in enumerate(drho_files):
-        print(i, "/", n_files)
-        print(drho_path + path)
+        if not i % 100:
+            print(i, "/", n_files)
         drho[i*n_particles:(i+1)*n_particles] = pd.read_csv(drho_path + path, names=[0])
     print("pos")
     for i, path in enumerate(pos_files[1:], 1):
@@ -71,6 +71,7 @@ def run(plot=False, *args, **kwags):
     hf.create_dataset('posdiff', data=pos)
     hf.create_dataset('veldiff', data=vel)
     hf.create_dataset('drho', data=drho)
+    hf.create_dataset('shape', data=pos.shape)
     hf.close()
     print("Dataset created as HDF5 file.")
     return
