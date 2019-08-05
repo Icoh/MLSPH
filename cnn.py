@@ -22,12 +22,12 @@ n_data, n_nbs = np.array(hf.get('shape'))
 print("NB count:", n_nbs)
 print("Preparing features and labels...")
 n_data = 1000
-X = np.zeros((n_data, n_nbs, 2))
-X[:, :, 0] = np.array(hf.get('posdiff'))[:n_data]
-X[:, :, 1] = np.array(hf.get('veldiff'))[:n_data]
-y = list(np.array(hf.get('drho'))[:50].ravel())
+X = np.zeros((n_nbs, n_data, 2))
+X[:, :, 0] = np.array(hf.get('posdiff'))[:n_data].transpose()
+X[:, :, 1] = np.array(hf.get('veldiff'))[:n_data].transpose()
+X = list(X)
+y = list(np.array(hf.get('drho')).ravel())
 hf.close()
-X = list(X[:,1,:].reshape(20, -1, 2))
 
 # # Use 90% of data for training
 # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
