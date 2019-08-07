@@ -88,7 +88,7 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
 
         dist.append(r)
-        vdiff.append(lin.norm(veldiff, axis=1))
+        vdiff.append(veldiff)
 
         kn, dkn = gaussian(r, posunit, h)
         ddens[i] = sum(continuity(j_mass, veldiff, dkn))
