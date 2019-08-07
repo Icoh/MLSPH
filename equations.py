@@ -2,8 +2,7 @@ import numpy as np
 import scipy.linalg as lin
 import scipy.spatial as sp
 from kernel import gaussian
-from tools import unit, save_dist, save_drho
-import csv
+from tools import unit
 
 
 def eos_tait(c, rho):
@@ -72,7 +71,8 @@ def calculate_accel(h, N, x0, z0, xv0, zv0, m0, dens0, press0, nn_list):
 def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
     ddens = np.zeros(N, dtype=np.float64)
     dist = list()
-    vdiff = list()
+    xvdiff = list()
+    zvdiff = list()
 
     for i, nbs in enumerate(nn_list):
         i_x, i_z = x0[i], z0[i]
@@ -88,11 +88,12 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
 
         dist.append(r)
-        vdiff.append(veldiff)
+        xvdiff.append(veldiff[:, 0])
+        zvdiff.append(veldiff[:, 1])
 
         kn, dkn = gaussian(r, posunit, h)
         ddens[i] = sum(continuity(j_mass, veldiff, dkn))
-    return ddens, dist, vdiff
+    return ddens, dist, xvdiff, zvdiff
 
 
 def calculate_density(h, x, z, mass, nn_list):

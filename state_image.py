@@ -23,15 +23,18 @@ def find_max_nb(files, path=''):
 
 def run(plot=False, *args, **kwags):
     pos_path = "cnn_files/posdiff/"
-    vel_path = "cnn_files/veldiff/"
+    xvel_path = "cnn_files/xvdiff/"
+    zvel_path = "cnn_files/zvdiff/"
     drho_path = "cnn_files/drho/"
     data_path = "cnn_files/cnn_data/"
     hdf_name = "datafile"
     pos_files = os.listdir(pos_path)
-    vel_files = os.listdir(vel_path)
+    xvel_files = os.listdir(xvel_path)
+    zvel_files = os.listdir(zvel_path)
     drho_files = os.listdir(drho_path)
     pos_files = sorted(pos_files, key=lambda x: float(re.findall('\d+', x)[0]))
-    vel_files = sorted(vel_files, key=lambda x: float(re.findall('\d+', x)[0]))
+    xvel_files = sorted(xvel_files, key=lambda x: float(re.findall('\d+', x)[0]))
+    zvel_files = sorted(zvel_files, key=lambda x: float(re.findall('\d+', x)[0]))
     drho_files = sorted(drho_files, key=lambda x: float(re.findall('\d+', x)[0]))
     n_files = len(pos_files)
 
@@ -39,12 +42,13 @@ def run(plot=False, *args, **kwags):
     print("Reading files...")
     mnb = find_max_nb(pos_files, path=pos_path)
     pos0 = pd.read_csv(pos_path + pos_files[0], names=range(mnb)).fillna(0)
-    vel0 = pd.read_csv(vel_path + vel_files[0], names=range(mnb)).fillna(0)
+    xvel0 = pd.read_csv(xvel_path + xvel_files[0], names=range(mnb)).fillna(0)
+    zvel0 = pd.read_csv(zvel_path + zvel_files[0], names=range(mnb)).fillna(0)
     n_particles, n_nbs = pos0.shape
     pos = np.zeros((n_files*n_particles, n_nbs))
-    vel = np.zeros((n_files*n_particles, n_nbs))
+    vel = np.zeros((n_files*n_particles, n_nbs, 2))
     drho = np.zeros((n_files*n_particles, 1))
-    pos[:n_particles], vel[:n_particles] = pos0, vel0
+    pos[:n_particles], vel[:n_particles,:,0], vel[:n_particles,:,0] = pos0, xvel0, zvel0
 
     print("pos.shape: ", pos.shape)
     print("vel.shape: ", vel.shape)
@@ -61,10 +65,11 @@ def run(plot=False, *args, **kwags):
             print(i, "/", n_files)
         pos[i*n_particles:(i+1)*n_particles] = pd.read_csv(pos_path + path, names=range(mnb)).fillna(0)
     print("vel")
-    for i, path in enumerate(vel_files[1:], 1):
+    for i, (xpath, zpath) in enumerate(zip(xvel_files[1:], zvel_files[1:]), 1):
         if not i % 100:
             print(i, "/", n_files)
-        vel[i*n_particles:(i+1)*n_particles] = pd.read_csv(vel_path + path, names=range(mnb)).fillna(0)
+        vel[i*n_particles:(i+1)*n_particles,:,0] = pd.read_csv(xvel_path + xpath, names=range(mnb)).fillna(0)
+        vel[i*n_particles:(i+1)*n_particles,:,1] = pd.read_csv(zvel_path + zpath, names=range(mnb)).fillna(0)
 
     print("   Done!")
     hf = h5py.File(data_path+hdf_name, mode="w")

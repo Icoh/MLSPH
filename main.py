@@ -73,7 +73,7 @@ start = time()
 # half-step, while the new values will serve as initial setup.
 nnp = nnps(support, h, xpos, zpos)
 xacc, zacc = calc_acc(xpos, zpos, xvel, zvel, mass, density, pressure, nnp[real_particles])
-drho, _, _ = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
+drho, _, _, _ = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
 xpos = xpos + xvel * dt * 0.5
 zpos = zpos + zvel * dt * 0.5
 xvel = xvel + xacc * dt * 0.5
@@ -99,7 +99,7 @@ for c, t in enumerate(time_range, 1):
     zpos_half = zpos + zvel * dt * 0.5
     xvel_half = xvel + xacc * dt * 0.5
     zvel_half = zvel + zacc * dt * 0.5
-    drho, _, _ = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
+    drho, _, _, _ = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
     density_half = density + drho * dt * 0.5
     pressure_half = eos(density_half)
 
@@ -109,7 +109,7 @@ for c, t in enumerate(time_range, 1):
     zvel = zvel + zacc * dt
     xpos = xpos_half + xvel * dt * 0.5
     zpos = zpos_half + zvel * dt * 0.5
-    drho, dists, vdiffs = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
+    drho, dists, xvdiffs, zvdiffs = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
     density = density_half + drho * dt * 0.5
     pressure = eos(density)
 
@@ -126,9 +126,12 @@ for c, t in enumerate(time_range, 1):
     with open("log/posdiff/t{}.csv".format(c), "w+") as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         writer.writerows(dists)
-    with open("log/veldiff/t{}.csv".format(c), "w+") as file:
+    with open("log/xvdiff/t{}.csv".format(c), "w+") as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerows(vdiffs)
+        writer.writerows(xvdiffs)
+    with open("log/zvdiff/t{}.csv".format(c), "w+") as file:
+        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        writer.writerows(zvdiffs)
     with open("log/drho/t{}.csv".format(c), "w+") as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         writer.writerows(drho.reshape((-1, 1)))

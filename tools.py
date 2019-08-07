@@ -24,20 +24,6 @@ def save_data(c, xpos, zpos, xvel, zvel, density, xacc, zacc, drho):
         writer.writerows(zip(density, xacc, zacc, drho))
 
 
-def save_dist(dist, veldiff, c):
-    with open("log/nnp/t{}.csv".format(c), "w+") as file:
-        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(["r", "v"])
-        writer.writerows(zip(dist, veldiff))
-
-
-def save_drho(drho, c):
-    with open("log/drho/t{}.csv".format(c), "w+") as file:
-        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(["drho"])
-        writer.writerows(drho)
-
-
 def plot(X, Z, C, domain, step, dt, *args, **kwargs):
     f = plt.figure(figsize=(20, 14))
     plt.scatter(X, Z, c=C, cmap='viridis_r', alpha=0.6, *args, **kwargs)

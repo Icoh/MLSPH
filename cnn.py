@@ -19,12 +19,14 @@ print("Starting CNN...")
 
 hf = h5py.File(data_dir + hdf_name, 'r')
 n_data, n_nbs = np.array(hf.get('shape'))
-n_data = 500000
-print("NB count:", n_nbs)
+# n_data = 500000
+vars = 3
+print("Nieghbor count:", n_nbs)
 print("Preparing features and labels...")
-X = np.zeros((n_nbs, n_data, 2))
+X = np.zeros((n_nbs, n_data, vars))
 X[:, :, 0] = np.array(hf.get('posdiff'))[:n_data].transpose()
-X[:, :, 1] = np.array(hf.get('veldiff'))[:n_data].transpose()
+X[:, :, 1] = np.array(hf.get('veldiff'))[:n_data,:,0].transpose()
+X[:, :, 2] = np.array(hf.get('veldiff'))[:n_data,:,1].transpose()
 X = list(X)
 y = list(np.array(hf.get('drho'))[:n_data].ravel())
 hf.close()
@@ -39,7 +41,7 @@ hf.close()
 # Define Neural Network Model
 inputs, hidden1, hidden2 = list(), list(), list()
 for n in range(n_nbs):
-    inputs.append(layers.Input(shape=(2,)))
+    inputs.append(layers.Input(shape=(vars,)))
     hidden1.append(layers.Dense(10, activation='relu', use_bias=False)(inputs[n]))
     hidden2.append(layers.Dense(10, activation='elu')(hidden1[n]))
 x = layers.Concatenate()(hidden2)
@@ -50,10 +52,10 @@ out = layers.Dense(1, activation='linear')(x)
 model = models.Model(inputs=inputs, outputs=out)
 tf.contrib.keras.utils.plot_model(model, to_file='multilayer_perceptron_graph.png')
 model.summary()
-early_stop = callbacks.EarlyStopping(monitor='mean_absolute_error', patience=5)
+early_stop = callbacks.EarlyStopping(monitor='mean_squared_error', patience=5)
 model.compile(optimizer='adam',
               loss='mean_squared_error',
               metrics=['mean_absolute_error'])
 
-history = model.fit(X, y, epochs=100, batch_size=100, callbacks=[early_stop])
+history = model.fit(X, y, epochs=40, batch_size=100, callbacks=[early_stop])
 model.save("model.h5")

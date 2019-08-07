@@ -9,8 +9,7 @@ import scipy.linalg as lin
 
 
 def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
-    X = np.zeros((20, len(nn_list), 2))
-    dist, vdiff = list(), list()
+    X = np.zeros((20, len(nn_list), 3))
 
     for i, nbs in enumerate(nn_list):
         i_x, i_z = x0[i], z0[i]
@@ -22,15 +21,10 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         posdiff = np.array(list(zip(i_x - j_x, i_z - j_z)))
         veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
 
-        r = np.zeros(20)
-        v = np.zeros(20)
-        r[:len(nbs)] = lin.norm(posdiff, axis=1)
-        v[:len(nbs)] = lin.norm(veldiff, axis=1)
-        dist.append(r)
-        vdiff.append(v)
+        X[:len(nbs), i, 0] = lin.norm(posdiff, axis=1)
+        X[:len(nbs), i, 1] = veldiff[0]
+        X[:len(nbs), i, 2] = veldiff[1]
 
-    X[:, :, 0] = np.array(dist).transpose()
-    X[:, :, 1] = np.array(vdiff).transpose()
     ddens = model.predict(list(X))
     return np.array(ddens).ravel()
 
