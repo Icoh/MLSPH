@@ -4,10 +4,15 @@ from tools import check_dir, save_data, plot, wall_gen
 from functools import partial
 from time import time
 import csv
+import os
 
 
 check_dir("sim")
 check_dir("log")
+logs = ["drho", "xdiff", "zdiff", "xvdiff", "zvdiff"]
+for path in logs:
+    os.mkdir("log/"+path)
+
 # Parameters
 dim = 2
 dom = [[0., 2], [0., 2]]

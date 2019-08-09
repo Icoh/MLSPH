@@ -88,10 +88,16 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         posunit = unit(posdiff, r)
         veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
 
-        xdist.append(posdiff[0])
-        zdist.append(posdiff[1])
-        xvdiff.append(veldiff[:, 0])
-        zvdiff.append(veldiff[:, 1])
+        try:
+            xdist.append(posdiff[:, 0])
+            zdist.append(posdiff[:, 1])
+            xvdiff.append(veldiff[:, 0])
+            zvdiff.append(veldiff[:, 1])
+        except IndexError:
+            xdist.append(0)
+            zdist.append(0)
+            xvdiff.append(0)
+            zvdiff.append(0)
 
         kn, dkn = gaussian(r, posunit, h)
         ddens[i] = sum(continuity(j_mass, veldiff, dkn))
