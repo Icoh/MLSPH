@@ -70,7 +70,8 @@ def calculate_accel(h, N, x0, z0, xv0, zv0, m0, dens0, press0, nn_list):
 
 def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
     ddens = np.zeros(N, dtype=np.float64)
-    dist = list()
+    xdist = list()
+    zdist = list()
     xvdiff = list()
     zvdiff = list()
 
@@ -87,13 +88,14 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         posunit = unit(posdiff, r)
         veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
 
-        dist.append(r)
+        xdist.append(posdiff[0])
+        zdist.append(posdiff[1])
         xvdiff.append(veldiff[:, 0])
         zvdiff.append(veldiff[:, 1])
 
         kn, dkn = gaussian(r, posunit, h)
         ddens[i] = sum(continuity(j_mass, veldiff, dkn))
-    return ddens, dist, xvdiff, zvdiff
+    return ddens, xdist, zdist, xvdiff, zvdiff
 
 
 def calculate_density(h, x, z, mass, nn_list):

@@ -73,7 +73,7 @@ start = time()
 # half-step, while the new values will serve as initial setup.
 nnp = nnps(support, h, xpos, zpos)
 xacc, zacc = calc_acc(xpos, zpos, xvel, zvel, mass, density, pressure, nnp[real_particles])
-drho, _, _, _ = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
+drho, _, _, _, _ = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
 xpos = xpos + xvel * dt * 0.5
 zpos = zpos + zvel * dt * 0.5
 xvel = xvel + xacc * dt * 0.5
@@ -87,8 +87,8 @@ sumden = calculate_density(h, xpos, zpos, mass, nnp)[real_particles]
 print("Neighbours count range: {} - {}".format(min(map(len, nnp)), max(map(len, nnp))))
 print("Density range from summation: {:.3f} - {:.3f}".format(min(sumden), max(sumden)))
 plot(xpos, zpos, density, dom, 0, dt, s=size)
-# save_data(0, xpos, zpos, xvel, zvel, density, xacc[real_particles],
-#           zacc[real_particles], drho)
+max_nn_count = 0
+max_vel = 0
 
 for c, t in enumerate(time_range, 1):
     nnp = nnps(support, h, xpos, zpos)
@@ -99,7 +99,7 @@ for c, t in enumerate(time_range, 1):
     zpos_half = zpos + zvel * dt * 0.5
     xvel_half = xvel + xacc * dt * 0.5
     zvel_half = zvel + zacc * dt * 0.5
-    drho, _, _, _ = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
+    drho, _, _, _, _ = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
     density_half = density + drho * dt * 0.5
     pressure_half = eos(density_half)
 
@@ -109,7 +109,7 @@ for c, t in enumerate(time_range, 1):
     zvel = zvel + zacc * dt
     xpos = xpos_half + xvel * dt * 0.5
     zpos = zpos_half + zvel * dt * 0.5
-    drho, dists, xvdiffs, zvdiffs = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
+    drho, xdists, zdists, xvdiffs, zvdiffs = calc_cont(xpos, zpos, xvel, zvel, mass, nnp)
     density = density_half + drho * dt * 0.5
     pressure = eos(density)
 
@@ -123,9 +123,12 @@ for c, t in enumerate(time_range, 1):
         print("  - Time elapsed: {:.2f}s".format(elapsed))
         print("  - ETA: {:.2f}s".format((tl - c) * elapsed / c))
 
-    with open("log/posdiff/t{}.csv".format(c), "w+") as file:
+    with open("log/xdiff/t{}.csv".format(c), "w+") as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerows(dists)
+        writer.writerows(xdists)
+    with open("log/zdiff/t{}.csv".format(c), "w+") as file:
+        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        writer.writerows(zdists)
     with open("log/xvdiff/t{}.csv".format(c), "w+") as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         writer.writerows(xvdiffs)
