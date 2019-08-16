@@ -6,10 +6,13 @@ from time import time
 from tensorflow.contrib.keras import models
 import state_image as sti
 import scipy.linalg as lin
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import h5py
 
 
 def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
-    X = np.zeros((20, len(nn_list), 3))
+    X = np.zeros((20, len(nn_list), 4))
 
     for i, nbs in enumerate(nn_list):
         i_x, i_z = x0[i], z0[i]
@@ -21,16 +24,26 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         posdiff = np.array(list(zip(i_x - j_x, i_z - j_z)))
         veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
 
-        X[:len(nbs), i, 0] = lin.norm(posdiff, axis=1)
-        X[:len(nbs), i, 1] = veldiff[0]
-        X[:len(nbs), i, 2] = veldiff[1]
+        X[:len(nbs), i, 0] = posdiff[:, 0]
+        X[:len(nbs), i, 1] = posdiff[:, 1]
+        X[:len(nbs), i, 2] = veldiff[:, 0]
+        X[:len(nbs), i, 3] = veldiff[:, 1]
+
+    X[:, :, 0], X[:, :, 1] = scx.scale(X[:, :, 0]), scz.scale(X[:, :, 1])
+    X[:, :, 2], X[:, :, 3] = scvx.scale(X[:, :, 2]), scvz.scale(X[:, :, 3])
 
     ddens = model.predict(list(X))
+    ddens = scrho.rescale(ddens)
     return np.array(ddens).ravel()
 
 
+hf = h5py.File("cnn_files/cnn_data/datafile", mode="r")
+scx, scz, scvx, scvz, scrho = sti.Scaler(0), sti.Scaler(0), sti.Scaler(0), sti.Scaler(0), sti.Scaler(0)
+scx.max_value, scz.max_value, scvx.max_value, scvz.max_value, scrho.max_value = hf.get('scale')
+print(scx.max_value, scz.max_value, scvx.max_value, scvz.max_value, scrho.max_value)
+
+
 check_dir("sim")
-check_dir("log")
 # Parameters
 dim = 2
 dom = [[0., 2], [0., 2]]
@@ -66,7 +79,7 @@ zpos = np.concatenate((zpos, zwall), axis=0)
 N_all = xpos.size
 xvel = np.zeros(N_all, dtype=np.float64)
 zvel = np.zeros(N_all, dtype=np.float64)
-mass = 1.37 * np.ones(N_all, dtype=np.float64)
+mass = 1.25 * np.ones(N_all, dtype=np.float64)
 density = 1000 * np.ones(N_all, dtype=np.float64)
 pressure = eos(density)
 
@@ -79,8 +92,8 @@ pressure_half = pressure
 
 # Run simulation
 model = models.load_model('model.h5')
-support = 3
-h = zsp * 0.8
+support = 4
+h = zsp * 0.6
 dt = 0.00005
 tlim = 0.5
 
@@ -146,5 +159,4 @@ for c, t in enumerate(time_range, 1):
         print("  - Neighbours count range: {} - {}".format(min(nnsize), max(nnsize)))
         print("  - Time elapsed = {:.2f}s".format(elapsed))
         print("  - ETA = {:.2f}s".format((tl - c) * elapsed / c))
-    # if not c % 10:
-    #     save_data(c, xpos, zpos, xvel, zvel, density, xacc, zacc)
+

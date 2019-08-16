@@ -21,10 +21,15 @@ def find_max_nb(files, path=''):
     return max_nb
 
 
-def scale(array):
-    abarr = abs(array)
-    max_value = np.max(abarr)
-    return array / max_value
+class Scaler:
+    def __init__(self, array):
+        self.max_value = np.max(abs(array))
+
+    def scale(self, array):
+        return array / self.max_value
+
+    def rescale(self, array):
+        return array * self.max_value
 
 
 def run(plot=False, *args, **kwags):
@@ -78,8 +83,12 @@ def run(plot=False, *args, **kwags):
         vel[i * n_particles:(i + 1) * n_particles, :, 0] = pd.read_csv(xvel_path + xpath, names=range(mnb)).fillna(0)
         vel[i * n_particles:(i + 1) * n_particles, :, 1] = pd.read_csv(zvel_path + zpath, names=range(mnb)).fillna(0)
 
-    # pos[:, :, 0], pos[:, :, 1] = scale(pos[:, :, 0]), scale(pos[:, :, 1])
-    # vel[:, :, 0], vel[:, :, 1] = scale(vel[:, :, 0]), scale(vel[:, :, 1])
+    scx, scz = Scaler(pos[:, :, 0]), Scaler(pos[:, :, 1])
+    scvx, scvz = Scaler(vel[:, :, 0]), Scaler(vel[:, :, 1])
+    scrho = Scaler(drho)
+    pos[:, :, 0], pos[:, :, 1] = scx.scale(pos[:, :, 0]), scz.scale(pos[:, :, 1])
+    vel[:, :, 0], vel[:, :, 1] = scvx.scale(vel[:, :, 0]), scvz.scale(vel[:, :, 1])
+    drho = scrho.scale(drho)
 
     print("   Done!")
     hf = h5py.File(data_path + hdf_name, mode="w")
@@ -87,6 +96,8 @@ def run(plot=False, *args, **kwags):
     hf.create_dataset('veldiff', data=vel)
     hf.create_dataset('drho', data=drho)
     hf.create_dataset('shape', data=pos.shape)
+    hf.create_dataset('scale', data=[scx.max_value, scz.max_value, scvx.max_value, scvz.max_value, scrho.max_value])
     hf.close()
+    print("Maximal values:", [scx.max_value, scz.max_value, scvx.max_value, scvz.max_value, scrho.max_value])
     print("Dataset created as HDF5 file.")
     return

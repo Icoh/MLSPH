@@ -99,7 +99,7 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
             xvdiff.append(0)
             zvdiff.append(0)
 
-        kn, dkn = gaussian(r, posunit, h)
+        _, dkn = gaussian(r, posunit, h)
         ddens[i] = sum(continuity(j_mass, veldiff, dkn))
     return ddens, xdist, zdist, xvdiff, zvdiff
 

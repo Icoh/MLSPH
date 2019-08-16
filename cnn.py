@@ -3,15 +3,17 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from tensorflow.contrib.keras import layers, models, callbacks, optimizers
 import state_image as sti
-import os
 import h5py
 import atexit
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 
 data_dir = "./cnn_files/cnn_data/"
 files = os.listdir(data_dir)
 hdf_name = "datafile"
 if hdf_name not in files:
-    print("Executing state_image.py first!")
+    print("Execute state_image.py first!")
     sti.run(plot=False, skip=100)
 else:
     print('Found', hdf_name, 'file.')
@@ -19,7 +21,7 @@ print("Starting CNN...")
 
 hf = h5py.File(data_dir + hdf_name, 'r')
 n_data, n_nbs, _ = np.array(hf.get('shape'))
-n_data = 1000000
+# n_data = 1000000
 vars = 4
 print("Samples:", n_data)
 print("Neighbor count:", n_nbs)
@@ -48,8 +50,14 @@ for n in range(n_nbs):
     hidden2.append(layers.Dense(10, activation='tanh')(hidden1[n]))
 x = layers.Concatenate()(hidden2)
 x = layers.Dense(250, activation='tanh')(x)
+x = layers.Dropout(0.2)(x)
+x = layers.Dense(250, activation='tanh')(x)
+x = layers.Dropout(0.2)(x)
+x = layers.Dense(250, activation='tanh')(x)
+x = layers.Dropout(0.2)(x)
 x = layers.Dense(50, activation='tanh')(x)
-out = layers.Dense(1, activation='linear')(x)
+x = layers.Dropout(0.2)(x)
+out = layers.Dense(1, activation='tanh')(x)
 
 model = models.Model(inputs=inputs, outputs=out)
 tf.contrib.keras.utils.plot_model(model, to_file='multilayer_perceptron_graph.png')
@@ -60,5 +68,5 @@ model.compile(optimizer=opt,
               loss='mean_squared_error',
               metrics=['mean_absolute_error'])
 
-history = model.fit(X, y, epochs=40, batch_size=100, callbacks=[early_stop])
-atexit.register(model.save("model.h5"))
+history = model.fit(X, y, epochs=10, batch_size=32, callbacks=[early_stop])
+atexit.register(model.save, "model.h5")

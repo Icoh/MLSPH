@@ -4,19 +4,24 @@ from tools import check_dir, save_data, plot, wall_gen
 from functools import partial
 from time import time
 import csv
-import os
+import os, errno
 
 
 check_dir("sim")
 check_dir("log")
-logs = ["drho", "xdiff", "zdiff", "xvdiff", "zvdiff"]
-for path in logs:
-    os.mkdir("log/"+path)
+try:
+    logs = ["drho", "xdiff", "zdiff", "xvdiff", "zvdiff"]
+    for path in logs:
+        os.mkdir("log/" + path)
+except OSError as e:
+    if e.errno != errno.EEXIST:
+        raise
+
 
 # Parameters
 dim = 2
 dom = [[0., 2], [0., 2]]
-C = 30
+C = 50
 eos = partial(eos_tait, C)
 
 # Initialize particle positions (staggered cubic lattice)
@@ -48,7 +53,7 @@ zpos = np.concatenate((zpos, zwall), axis=0)
 N_all = xpos.size
 xvel = np.zeros(N_all, dtype=np.float64)
 zvel = np.zeros(N_all, dtype=np.float64)
-mass = 1.37 * np.ones(N_all, dtype=np.float64)
+mass = 1.26 * np.ones(N_all, dtype=np.float64)
 density = 1000 * np.ones(N_all, dtype=np.float64)
 pressure = eos(density)
 
@@ -60,8 +65,8 @@ density_half = density
 pressure_half = pressure
 
 # Run simulation
-support = 3
-h = zsp * 0.8
+support = 4
+h = zsp * 0.6
 dt = 0.00005
 tlim = 0.5
 
@@ -127,19 +132,19 @@ for c, t in enumerate(time_range, 1):
         print("  - Neighbours count range: {} - {}".format(min(nnsize), max(nnsize)))
         print("  - Time elapsed: {:.2f}s".format(elapsed))
         print("  - ETA: {:.2f}s".format((tl - c) * elapsed / c))
-
-    with open("log/xdiff/t{}.csv".format(c), "w+") as file:
-        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerows(xdists)
-    with open("log/zdiff/t{}.csv".format(c), "w+") as file:
-        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerows(zdists)
-    with open("log/xvdiff/t{}.csv".format(c), "w+") as file:
-        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerows(xvdiffs)
-    with open("log/zvdiff/t{}.csv".format(c), "w+") as file:
-        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerows(zvdiffs)
-    with open("log/drho/t{}.csv".format(c), "w+") as file:
-        writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerows(drho.reshape((-1, 1)))
+    if not c % 10:
+        with open("log/xdiff/t{}.csv".format(c), "w+") as file:
+            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerows(xdists)
+        with open("log/zdiff/t{}.csv".format(c), "w+") as file:
+            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerows(zdists)
+        with open("log/xvdiff/t{}.csv".format(c), "w+") as file:
+            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerows(xvdiffs)
+        with open("log/zvdiff/t{}.csv".format(c), "w+") as file:
+            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerows(zvdiffs)
+        with open("log/drho/t{}.csv".format(c), "w+") as file:
+            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerows(drho.reshape((-1, 1)))
