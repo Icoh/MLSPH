@@ -30,6 +30,20 @@ def pressure_term(mass, rhoa, pressa, rhob, pressb, dkernel):
     return -mass * c * dkernel
 
 
+def artif_visc(h, mass, dist, r, vdiff, rhoa, rhob, dkernel):
+    alpha = 1.
+    beta = 0
+    c = 30.
+    dot = np.sum(dist*vdiff, axis=1)
+    trues = dot < 0
+    mu = (h * dot/(r.ravel()**2 + 0.01 * h ** 2))[trues]
+    drho = (rhoa + rhob)[trues] / 2
+    visc = np.zeros_like(dot)
+    visc[trues] = (-alpha * c * mu) / drho + beta * mu ** 2
+    visc.shape = (visc.size, 1)
+    return -mass * visc * dkernel
+
+
 def nnps(support, h, xpos, zpos):
     pos = list(zip(xpos, zpos))
     kdt = sp.cKDTree(pos)
@@ -63,6 +77,7 @@ def calculate_accel(h, N, x0, z0, xv0, zv0, m0, dens0, press0, nn_list):
 
         kn, dkn = gaussian(r, posunit, h)
         acc = sum(pressure_term(j_mass, i_rho, i_pressure, j_rho, j_pressure, dkn)) + np.array([0, -10])
+        acc += sum(artif_visc(h, j_mass, posdiff, r, veldiff, i_rho, j_rho, dkn))
         xa[i] = acc[0]
         za[i] = acc[1]
     return xa, za

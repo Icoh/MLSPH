@@ -25,8 +25,8 @@ C = 50
 eos = partial(eos_tait, C)
 
 # Initialize particle positions (staggered cubic lattice)
-ndim = np.array([14, 28])
-px = np.linspace(0.75, 1.25, ndim[0])
+ndim = np.array([16, 32])
+px = np.linspace(0.0, 0.5, ndim[0])
 pz = np.linspace(0.0, 1., ndim[1])
 xsp = (px[-1] - px[0]) / ndim[0]
 zsp = (pz[-1] - pz[0]) / ndim[1]
@@ -53,7 +53,7 @@ zpos = np.concatenate((zpos, zwall), axis=0)
 N_all = xpos.size
 xvel = np.zeros(N_all, dtype=np.float64)
 zvel = np.zeros(N_all, dtype=np.float64)
-mass = 1.26 * np.ones(N_all, dtype=np.float64)
+mass = 0.95 * np.ones(N_all, dtype=np.float64)
 density = 1000 * np.ones(N_all, dtype=np.float64)
 pressure = eos(density)
 
