@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def gaussian(r, unit_vect, h, dim=2):
+def kernel(r, unit_vect, h, dim=2):
     q = r / h
     g = np.exp(-q ** 2) / (h ** 2 * np.pi) ** (dim / 2.)
     dg = np.zeros((1,2))

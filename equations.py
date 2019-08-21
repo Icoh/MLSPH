@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.linalg as lin
 import scipy.spatial as sp
-from kernel import gaussian
+from kernel import kernel
 from tools import unit
 
 
@@ -18,7 +18,7 @@ def summation_density(mass, kernel):
 
 
 def continuity(mass, vdiff, dkernel):
-    return mass * np.sum(vdiff * dkernel, axis=1)
+    return mass * np.sum(vdiff * dkernel, axis=-1)
 
 
 def pressure_term(mass, rhoa, pressa, rhob, pressb, dkernel):
@@ -34,12 +34,12 @@ def artif_visc(h, mass, dist, r, vdiff, rhoa, rhob, dkernel):
     alpha = 1.
     beta = 0
     c = 30.
-    dot = np.sum(dist*vdiff, axis=1)
+    dot = np.sum(dist*vdiff, axis=-1)
     trues = dot < 0
-    mu = (h * dot/(r.ravel()**2 + 0.01 * h ** 2))[trues]
+    mu = (h * dot/(r.ravel()**2 + 0.01 * h**2))[trues]
     drho = (rhoa + rhob)[trues] / 2
     visc = np.zeros_like(dot)
-    visc[trues] = (-alpha * c * mu) / drho + beta * mu ** 2
+    visc[trues] = ((-alpha * c * mu) + beta * mu ** 2)/drho
     visc.shape = (visc.size, 1)
     return -mass * visc * dkernel
 
@@ -70,12 +70,12 @@ def calculate_accel(h, N, x0, z0, xv0, zv0, m0, dens0, press0, nn_list):
         j_rho = dens0[nbs]
         j_pressure = press0[nbs]
 
-        posdiff = np.array(list(zip(i_x - j_x, i_z - j_z)))
-        r = lin.norm(posdiff, axis=1)
+        posdiff = np.dstack((i_x - j_x, i_z - j_z)).reshape(-1,2)
+        r = lin.norm(posdiff, axis=-1)
         posunit = unit(posdiff, r)
-        veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
+        veldiff = np.dstack((i_xv - j_xv, i_zv - j_zv)).reshape(-1,2)
 
-        kn, dkn = gaussian(r, posunit, h)
+        kn, dkn = kernel(r, posunit, h)
         acc = sum(pressure_term(j_mass, i_rho, i_pressure, j_rho, j_pressure, dkn)) + np.array([+0.25, 0])
         acc += sum(artif_visc(h, j_mass, posdiff, r, veldiff, i_rho, j_rho, dkn))
         xa[i] = acc[0]
@@ -98,10 +98,10 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         j_xv, j_zv = xv0[nbs], zv0[nbs]
         j_mass = m0[nbs]
 
-        posdiff = np.array(list(zip(i_x - j_x, i_z - j_z)))
-        r = lin.norm(posdiff, axis=1)
+        posdiff = np.dstack((i_x - j_x, i_z - j_z)).reshape(-1,2)
+        r = lin.norm(posdiff, axis=-1)
         posunit = unit(posdiff, r)
-        veldiff = np.array(list(zip(i_xv - j_xv, i_zv - j_zv)))
+        veldiff = np.dstack((i_xv - j_xv, i_zv - j_zv)).reshape(-1,2)
 
         try:
             xdist.append(posdiff[:, 0])
@@ -114,7 +114,7 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
             xvdiff.append(0)
             zvdiff.append(0)
 
-        _, dkn = gaussian(r, posunit, h)
+        _, dkn = kernel(r, posunit, h)
         ddens[i] = sum(continuity(j_mass, veldiff, dkn))
     return ddens, xdist, zdist, xvdiff, zvdiff
 
@@ -128,12 +128,12 @@ def calculate_density(h, x, z, mass, nn_list):
         j_x, j_z = x[nbs], z[nbs]
         j_mass = mass[nbs]
 
-        posdiff = np.array(list(zip(i_x - j_x, i_z - j_z)))
-        r = lin.norm(posdiff, axis=1)
+        posdiff = np.dstack((i_x - j_x, i_z - j_z)).reshape(-1,2)
+        r = lin.norm(posdiff, axis=-1)
         posunit = unit(posdiff, r)
 
-        kn, dkn = gaussian(r, posunit, h)
-        kn0, _ = gaussian(0, 0, h)
+        kn, dkn = kernel(r, posunit, h)
+        kn0, _ = kernel(0, 0, h)
         dens[i] = sum(summation_density(j_mass, kn)) + kn0*i_mass
 
         # plt.scatter(x0, z0, c='red')

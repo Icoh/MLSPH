@@ -5,7 +5,14 @@ from functools import partial
 from time import time
 import matplotlib.pyplot as plt
 import csv
-import os, errno, atexit
+import os, errno
+
+
+def define_poiseuille(k, h, nu):
+    def poiseuille(z):
+        return k*(h*z - z**2)/(2*nu)
+    return poiseuille
+
 
 check_dir("sim")
 check_dir("log")
@@ -80,7 +87,7 @@ def periodize(x, z, xv, zv, m, d, p):
 support = 4
 h = zsp * 0.6
 dt = 0.00005
-tlim = 0.5
+tlim = 1.5
 
 print("Simulating SPH with {} particles.".format(N_real))
 print("Using  h = {:.5f};  dt = {};  c = {}".format(h, dt, C))
@@ -115,58 +122,72 @@ plot(xp, zp, dp, dom, 0, dt, s=size)
 max_nn_count = 0
 max_vel = 0
 
-for c, t in enumerate(time_range, 1):
-    # Leapfrog scheme: first integrate from previous halfstep, then use this in integrate once again.
-    nnp = nnps(support, h, xp, zp)
-    drho, _, _, _, _ = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
-    density_half = density + drho * dt * 0.5
-    xacc, zacc = calc_acc(*periodize(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half),
-                          nnp[real_particles])
-    xpos_half = xpos + xvel * dt * 0.5
-    zpos_half = zpos + zvel * dt * 0.5
-    xvel_half = xvel + xacc * dt * 0.5
-    zvel_half = zvel + zacc * dt * 0.5
-    pressure_half = eos(density_half)
+try:
+    for c, t in enumerate(time_range, 1):
+        # Leapfrog scheme: first integrate from previous halfstep, then use this in integrate once again.
+        nnp = nnps(support, h, xp, zp)
+        drho, _, _, _, _ = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
+        density_half = density + drho * dt * 0.5
+        xacc, zacc = calc_acc(*periodize(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half),
+                              nnp[real_particles])
+        xpos_half = xpos + xvel * dt * 0.5
+        zpos_half = zpos + zvel * dt * 0.5
+        xvel_half = xvel + xacc * dt * 0.5
+        zvel_half = zvel + zacc * dt * 0.5
+        pressure_half = eos(density_half)
 
-    xacc, zacc = calc_acc(*periodize(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half),
-                          nnp[real_particles])
-    xvel = xvel + xacc * dt
-    zvel = zvel + zacc * dt
-    xpos = xpos_half + xvel * dt * 0.5
-    zpos = zpos_half + zvel * dt * 0.5
-    xp, zp, xvp, zvp, mp, _, _ = periodize(xpos, zpos, xvel, zvel, mass, density, pressure)
-    drho, xdists, zdists, xvdiffs, zvdiffs = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
-    density = density_half + drho * dt * 0.5
-    pressure = eos(density)
+        xacc, zacc = calc_acc(*periodize(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half),
+                              nnp[real_particles])
+        xvel = xvel + xacc * dt
+        zvel = zvel + zacc * dt
+        xpos = xpos_half + xvel * dt * 0.5
+        zpos = zpos_half + zvel * dt * 0.5
+        xp, zp, xvp, zvp, mp, _, _ = periodize(xpos, zpos, xvel, zvel, mass, density, pressure)
+        drho, xdists, zdists, xvdiffs, zvdiffs = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
+        density = density_half + drho * dt * 0.5
+        pressure = eos(density)
 
-    out = xpos > dom[0][1]+xsp
-    xpos[out] = xpos[out]-(dom[0][1]+xsp)
+        out = xpos > dom[0][1]+xsp
+        xpos[out] = xpos[out]-(dom[0][1]+xsp)
 
-    if not c % 100:
-        elapsed = time() - start
-        plot(xpos, zpos, density, dom, c, dt, s=size)
-        nnsize = list(map(len, nnp[:N_real]))
-        print("> Progress = {:.2f}%".format(t / tlim * 100))
-        print("  - Density range: {:.3f} - {:.3f}".format(min(density), max(density)))
-        print("  - Neighbours count range: {} - {}".format(min(nnsize), max(nnsize)))
-        print("  - Time elapsed: {:.2f}s".format(elapsed))
-        print("  - ETA: {:.2f}s".format((tl - c) * elapsed / c))
-    if not c % 10:
-        with open("log/xdiff/t{}.csv".format(c), "w+") as file:
-            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            writer.writerows(xdists)
-        with open("log/zdiff/t{}.csv".format(c), "w+") as file:
-            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            writer.writerows(zdists)
-        with open("log/xvdiff/t{}.csv".format(c), "w+") as file:
-            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            writer.writerows(xvdiffs)
-        with open("log/zvdiff/t{}.csv".format(c), "w+") as file:
-            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            writer.writerows(zvdiffs)
-        with open("log/drho/t{}.csv".format(c), "w+") as file:
-            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            writer.writerows(drho.reshape((-1, 1)))
+        if not c % 100:
+            elapsed = time() - start
+            plot(xpos, zpos, density, dom, c, dt, s=size)
+            nnsize = list(map(len, nnp[:N_real]))
+            print("> Progress = {:.2f}%".format(t / tlim * 100))
+            print("  - Density range: {:.3f} - {:.3f}".format(min(density), max(density)))
+            print("  - Neighbours count range: {} - {}".format(min(nnsize), max(nnsize)))
+            print("  - Time elapsed: {:.2f}s".format(elapsed))
+            print("  - ETA: {:.2f}s".format((tl - c) * elapsed / c))
+        if not c % 10:
+            with open("log/xdiff/t{}.csv".format(c), "w+") as file:
+                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerows(xdists)
+            with open("log/zdiff/t{}.csv".format(c), "w+") as file:
+                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerows(zdists)
+            with open("log/xvdiff/t{}.csv".format(c), "w+") as file:
+                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerows(xvdiffs)
+            with open("log/zvdiff/t{}.csv".format(c), "w+") as file:
+                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerows(zvdiffs)
+            with open("log/drho/t{}.csv".format(c), "w+") as file:
+                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerows(drho.reshape((-1, 1)))
+except KeyboardInterrupt:
+    plt.plot(xvel, zpos, 'k.')
+
+    poise = define_poiseuille(0.25, 0.4, 0.014)
+    z = np.linspace(0, 0.4, 100)
+    v = poise(z)
+    plt.plot(v, z)
+    plt.show()
 
 plt.plot(xvel, zpos, 'k.')
+
+poise = define_poiseuille(0.25, 0.4, 0.014)
+z = np.linspace(0, 0.4, 100)
+v = poise(z)
+plt.plot(v, z)
 plt.show()

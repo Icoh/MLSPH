@@ -4,7 +4,6 @@ import tensorflow as tf
 from tensorflow.contrib.keras import layers, models, callbacks, optimizers
 import state_image as sti
 import h5py
-import atexit
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -57,7 +56,7 @@ x = layers.Dense(250, activation='tanh')(x)
 x = layers.Dropout(0.2)(x)
 x = layers.Dense(50, activation='tanh')(x)
 x = layers.Dropout(0.2)(x)
-out = layers.Dense(1, activation='tanh')(x)
+out = layers.Dense(1, activation='linear')(x)
 
 model = models.Model(inputs=inputs, outputs=out)
 tf.contrib.keras.utils.plot_model(model, to_file='multilayer_perceptron_graph.png')
@@ -67,6 +66,8 @@ opt = optimizers.Adam(lr=1e-3, decay=1e-5)
 model.compile(optimizer=opt,
               loss='mean_squared_error',
               metrics=['mean_absolute_error'])
-
-history = model.fit(X, y, epochs=10, batch_size=32, callbacks=[early_stop])
-atexit.register(model.save, "model.h5")
+try:
+    history = model.fit(X, y, epochs=20, batch_size=100, callbacks=[early_stop])
+    model.save("model.h5")
+except KeyboardInterrupt:
+    model.save("model.h5")
