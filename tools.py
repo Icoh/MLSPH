@@ -50,8 +50,8 @@ def unit(vector, norm):
 
 
 def wall_gen(xdom, zdom, xspacing, zspacing):
-    xrange = np.arange(xdom[0], xdom[1]+0.9*xspacing, xspacing)
-    zrange = np.arange(zdom[0], zdom[1]+0.9*zspacing, zspacing)
+    xrange = np.arange(xdom[0], xdom[1]+xspacing, xspacing)
+    zrange = np.arange(zdom[0], zdom[1]+zspacing, zspacing)
     X, Z = np.meshgrid(xrange, zrange)
     wall_x, wall_z = list(), list()
     for x, z in zip(X.ravel(), Z.ravel()):

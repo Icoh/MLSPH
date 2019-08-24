@@ -28,8 +28,8 @@ eos = partial(eos_tait, C)
 ndim = np.array([16, 32])
 px = np.linspace(0.0, 0.5, ndim[0])
 pz = np.linspace(0.0, 1., ndim[1])
-xsp = (px[-1] - px[0]) / ndim[0]
-zsp = (pz[-1] - pz[0]) / ndim[1]
+xsp = (px[-1] - px[0]) / (ndim[0]-1)
+zsp = (pz[-1] - pz[0]) / (ndim[1]-1)
 size = (600 * xsp)**1.5
 
 xpos, zpos = np.meshgrid(px, pz)
@@ -53,7 +53,7 @@ zpos = np.concatenate((zpos, zwall), axis=0)
 N_all = xpos.size
 xvel = np.zeros(N_all, dtype=np.float64)
 zvel = np.zeros(N_all, dtype=np.float64)
-mass = 0.95 * np.ones(N_all, dtype=np.float64)
+mass = 1.228 * np.ones(N_all, dtype=np.float64)
 density = 1000 * np.ones(N_all, dtype=np.float64)
 pressure = eos(density)
 
@@ -65,8 +65,8 @@ density_half = density
 pressure_half = pressure
 
 # Run simulation
-support = 4
-h = zsp * 0.6
+support = 3
+h = zsp * 0.8
 dt = 0.00005
 tlim = 0.5
 
