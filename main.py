@@ -8,16 +8,16 @@ import csv
 import os, errno
 
 
-def define_poiseuille(k, h, nu):
+def define_poiseuille(k, H, nu):
     def poiseuille(z):
-        return k*(h*z - z**2)/(2*nu)
+        return k*(H*z - z**2)/(2*nu)
     return poiseuille
 
 
 check_dir("sim")
 check_dir("log")
 try:
-    logs = ["drho", "xdiff", "zdiff", "xvdiff", "zvdiff"]
+    logs = ["drho", "xdiff", "zdiff", "xvdiff", "zvdiff", "poise"]
     for path in logs:
         os.mkdir("log/" + path)
 except OSError as e:
@@ -31,12 +31,12 @@ C = 30
 eos = partial(eos_tait, C)
 
 # Initialize particle positions (staggered cubic lattice)
-ndim = np.array([14, 28])
+ndim = np.array([15, 30])
 px = np.linspace(0.0, 0.2, ndim[0])
 pz = np.linspace(0.0, 0.4, ndim[1])
 xsp = (px[-1] - px[0]) / (ndim[0]-1)
 zsp = (pz[-1] - pz[0]) / (ndim[1]-1)
-size = (1000 * xsp) ** 1.5
+size = (2000 * xsp) ** 1.5
 xpos, zpos = np.meshgrid(px, pz)
 xpos, zpos = xpos.ravel(), zpos.ravel()
 N_real = xpos.size
@@ -58,7 +58,7 @@ zpos = np.concatenate((zpos, zwall), axis=0)
 N_all = xpos.size
 xvel = np.zeros(N_all, dtype=np.float64)
 zvel = np.zeros(N_all, dtype=np.float64)
-mass = 0.225811 * np.ones(N_all, dtype=np.float64)
+mass = 0.19526 * np.ones(N_all, dtype=np.float64)
 density = 1000 * np.ones(N_all, dtype=np.float64)
 pressure = eos(density)
 
@@ -85,8 +85,8 @@ def periodize(x, z, xv, zv, m, d, p):
 # Run simulation
 h = zsp * 0.8
 support = 3
-dt = 0.00005
-tlim = 1.5
+dt = 0.0001
+tlim = 5
 
 print("Simulating SPH with {} particles.".format(N_real))
 print("Using  h = {:.5f};  dt = {};  c = {}".format(h, dt, C))
@@ -158,7 +158,10 @@ try:
             print("  - Neighbours count range: {} - {}".format(min(nnsize), max(nnsize)))
             print("  - Time elapsed: {:.2f}s".format(elapsed))
             print("  - ETA: {:.2f}s".format((tl - c) * elapsed / c))
-        # if not c % 10:
+            with open("log/poise/t{}.csv".format(c), "w+") as file:
+                writer = csv.writer(file)
+                writer.writerows(zip(xvel, zpos))
+        # if not c % 100:
         #     with open("log/xdiff/t{}.csv".format(c), "w+") as file:
         #         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         #         writer.writerows(xdists)
@@ -178,14 +181,13 @@ except KeyboardInterrupt:
     print("Early manually interrupted.")
 
 with open("log/poise/last.csv", "w+") as file:
-    writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    writer.writerows(zpos)
-    writer.writerows(xvel)
+    writer = csv.writer(file)
+    writer.writerows(zip(xvel, zpos))
 
 
 plt.plot(xvel, zpos, 'k.')
 
-poise = define_poiseuille(k=0.05, h=h, nu=30*h/8)
+poise = define_poiseuille(k=0.05, H=0.4, nu=30*h/8)
 z = np.linspace(0, 0.4, 100)
 v = poise(z)
 plt.plot(v, z)
