@@ -7,7 +7,7 @@ from tools import unit
 
 def eos_tait(c, rho):
     gamma = 7.
-    rho0 = 998.
+    rho0 = 1000.
     b = c ** 2 * rho0 / gamma
     p = b * ((rho / rho0) ** gamma - 1)
     return p
@@ -76,7 +76,7 @@ def calculate_accel(h, N, x0, z0, xv0, zv0, m0, dens0, press0, nn_list):
         veldiff = np.dstack((i_xv - j_xv, i_zv - j_zv)).reshape(-1,2)
 
         kn, dkn = kernel(r, posunit, h)
-        acc = sum(pressure_term(j_mass, i_rho, i_pressure, j_rho, j_pressure, dkn)) + np.array([+0.25, 0])
+        acc = sum(pressure_term(j_mass, i_rho, i_pressure, j_rho, j_pressure, dkn)) + np.array([+0.05, 0])
         acc += sum(artif_visc(h, j_mass, posdiff, r, veldiff, i_rho, j_rho, dkn))
         xa[i] = acc[0]
         za[i] = acc[1]

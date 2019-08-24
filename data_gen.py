@@ -21,7 +21,7 @@ def continuity(m, vdiff, dkernel):
 def calculate_continuity(dists, unit_vects, veldiffs, m):
     _, dkn = kernel(dists, unit_vects, h)
     cont = continuity(m, veldiffs, dkn)
-    return cont, dkn, kn
+    return cont, dkn
 
 
 h = 0.00750
