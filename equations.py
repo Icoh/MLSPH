@@ -7,7 +7,7 @@ from tools import unit
 
 def eos_tait(c, rho):
     gamma = 7.
-    rho0 = 1000.
+    rho0 = 998.
     b = c ** 2 * rho0 / gamma
     p = b * ((rho / rho0) ** gamma - 1)
     return p

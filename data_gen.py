@@ -21,7 +21,7 @@ def continuity(m, vdiff, dkernel):
 def calculate_continuity(dists, unit_vects, veldiffs, m):
     _, dkn = kernel(dists, unit_vects, h)
     cont = continuity(m, veldiffs, dkn)
-    return cont, dkn
+    return cont, dkn, kn
 
 
 h = 0.00750
@@ -64,7 +64,7 @@ r = r.reshape(*r.shape, 1)
 units = pos / r
 units[np.isnan(units)] = np.zeros_like(units[np.isnan(units)])
 mass = 0.1497 * np.ones((n_files*n_particles, n_nbs))
-conts, dkernels = calculate_continuity(r, units, vel, mass)
+conts, dkernels, kernels = calculate_continuity(r, units, vel, mass)
 print("pos shape: ", pos.shape)
 print("vel shape: ", vel.shape)
 print("r shape:", r.shape)
@@ -79,7 +79,8 @@ hf.create_dataset('norms', data=r)
 hf.create_dataset('units', data=units)
 hf.create_dataset('veldiff', data=vel)
 hf.create_dataset('continuity', data=conts)
-hf.create_dataset('dkernels', data=dkernels)
+hf.create_dataset('dkernel', data=dkernels)
+hf.create_dataset('kernel', data=kernels)
 hf.create_dataset('shape', data=pos.shape)
 hf.close()
 print("Dataset created as HDF5 file.")

@@ -31,20 +31,19 @@ C = 30
 eos = partial(eos_tait, C)
 
 # Initialize particle positions (staggered cubic lattice)
-ndim = np.array([16, 32])
+ndim = np.array([15, 30])
 px = np.linspace(0.0, 0.2, ndim[0])
 pz = np.linspace(0.0, 0.4, ndim[1])
-xsp = (px[-1] - px[0]) / ndim[0]
-zsp = (pz[-1] - pz[0]) / ndim[1]
+xsp = (px[-1] - px[0]) / (ndim[0]-1)
+zsp = (pz[-1] - pz[0]) / (ndim[1]-1)
 size = (1000 * xsp) ** 1.5
-
 xpos, zpos = np.meshgrid(px, pz)
 xpos, zpos = xpos.ravel(), zpos.ravel()
 N_real = xpos.size
 
 # Generate wall of particles:
 w = 2
-w1 = wall_gen([dom[0][0], dom[0][1]], [-zsp * w, -zsp], xsp, zsp)
+w1 = wall_gen([dom[0][0], dom[0][1]], [-w*zsp, -zsp], xsp, zsp)
 w4 = wall_gen([dom[0][0], dom[0][1]], [dom[1][1] + zsp, dom[1][1] + w * zsp], xsp, zsp)
 # w2 = wall_gen([-w * xsp, -xsp], dom[1], xsp, zsp)
 # w3 = wall_gen([dom[0][1] + xsp, dom[0][1] + xsp * w], dom[1], xsp, zsp)
@@ -59,8 +58,8 @@ zpos = np.concatenate((zpos, zwall), axis=0)
 N_all = xpos.size
 xvel = np.zeros(N_all, dtype=np.float64)
 zvel = np.zeros(N_all, dtype=np.float64)
-mass = 0.1497 * np.ones(N_all, dtype=np.float64)
-density = 1000 * np.ones(N_all, dtype=np.float64)
+mass = 0.195 * np.ones(N_all, dtype=np.float64)
+density = 998 * np.ones(N_all, dtype=np.float64)
 pressure = eos(density)
 
 xpos_half = xpos
@@ -84,8 +83,8 @@ def periodize(x, z, xv, zv, m, d, p):
 
 
 # Run simulation
-support = 4
-h = zsp * 0.6
+h = zsp * 0.8
+support = 3
 dt = 0.00005
 tlim = 1.5
 
@@ -100,7 +99,6 @@ start = time()
 # Perform first half-step to use leap-frog scheme subsequently. The old values will serve as the previous
 # half-step, while the new values will serve as initial setup.
 xp, zp, xvp, zvp, mp, dp, pp = periodize(xpos, zpos, xvel, zvel, mass, density, pressure)
-# plot(xp, zp, dp, dom, 0, dt, s=size)
 real_particles = np.array([True for _ in range(N_real)] + [False for _ in range(xp.size - N_real)])
 sim_particles = np.array([True for _ in range(N_real + N_wall)] + [False for _ in range(xp.size - N_real - N_wall)])
 nnp = nnps(support, h, xp, zp)
@@ -113,9 +111,10 @@ zvel = zvel + zacc * dt * 0.5
 density = density + drho * dt * 0.5
 pressure = eos(density)
 
-nnp = nnps(support, h, xpos, zpos)
-sumden = calculate_density(h, xpos, zpos, mass, nnp)[:N_real]
-# density[real_particles] = sumden
+nnp = nnps(support, h, xp, zp)
+sumden = calculate_density(h, xp, zp, mp, nnp)[:N_real]
+density[:N_real] = sumden
+dp[:N_real] = sumden
 print("Neighbours count range: {} - {}".format(min(map(len, nnp[:N_real])), max(map(len, nnp))))
 print("Density range from summation: {:.3f} - {:.3f}".format(min(sumden), max(sumden)))
 plot(xp, zp, dp, dom, 0, dt, s=size)
@@ -176,13 +175,7 @@ try:
                 writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 writer.writerows(drho.reshape((-1, 1)))
 except KeyboardInterrupt:
-    plt.plot(xvel, zpos, 'k.')
-
-    poise = define_poiseuille(0.25, 0.4, 0.014)
-    z = np.linspace(0, 0.4, 100)
-    v = poise(z)
-    plt.plot(v, z)
-    plt.show()
+    print("Early manually interrupted.")
 
 plt.plot(xvel, zpos, 'k.')
 

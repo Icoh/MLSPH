@@ -28,13 +28,13 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         r = lin.norm(posdiff, axis=-1).reshape(-1, 1)
         units = posdiff/r
 
-        X[:, i, 0] = r.ravel()
-        X[:, i, 1] = units[:, 0]
-        X[:, i, 2] = units[:, 1]
-        X[:, i, 3] = veldiff[:, 0]
-        X[:, i, 4] = veldiff[:, 1]
-        cont = model.predict(X)
-        ddens[i] = sum(cont)*11318.34639525
+        X[i, :len(nbs), 0] = r.ravel()
+        X[i, :len(nbs), 1] = units[:, 0]
+        X[i, :len(nbs), 2] = units[:, 1]
+        X[i, :len(nbs), 3] = veldiff[:, 0]
+        X[i, :len(nbs), 4] = veldiff[:, 1]
+    cont = model.predict(X)
+    ddens = np.sum(cont, axis=-2)
     return np.array(ddens).ravel()
 
 
