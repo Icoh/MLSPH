@@ -85,10 +85,6 @@ def calculate_accel(h, N, x0, z0, xv0, zv0, m0, dens0, press0, nn_list):
 
 def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
     ddens = np.zeros(N, dtype=np.float64)
-    xdist = list()
-    zdist = list()
-    xvdiff = list()
-    zvdiff = list()
 
     for i, nbs in enumerate(nn_list):
         i_x, i_z = x0[i], z0[i]
@@ -103,29 +99,18 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         posunit = unit(posdiff, r)
         veldiff = np.dstack((i_xv - j_xv, i_zv - j_zv)).reshape(-1,2)
 
-        try:
-            xdist.append(posdiff[:, 0])
-            zdist.append(posdiff[:, 1])
-            xvdiff.append(veldiff[:, 0])
-            zvdiff.append(veldiff[:, 1])
-        except IndexError:
-            xdist.append(0)
-            zdist.append(0)
-            xvdiff.append(0)
-            zvdiff.append(0)
-
         _, dkn = kernel(r, posunit, h)
         ddens[i] = sum(continuity(j_mass, veldiff, dkn))
-    return ddens, xdist, zdist, xvdiff, zvdiff
+    return ddens
 
 
-def calculate_density(h, x, z, mass, nn_list):
+def calculate_density(h, x0, z0, mass, nn_list):
     dens = np.zeros(mass.size)
     for i, nbs in enumerate(nn_list):
-        i_x, i_z = x[i], z[i]
+        i_x, i_z = x0[i], z0[i]
         i_mass = mass[i]
 
-        j_x, j_z = x[nbs], z[nbs]
+        j_x, j_z = x0[nbs], z0[nbs]
         j_mass = mass[nbs]
 
         posdiff = np.dstack((i_x - j_x, i_z - j_z)).reshape(-1,2)
@@ -136,6 +121,7 @@ def calculate_density(h, x, z, mass, nn_list):
         kn0, _ = kernel(0, 0, h)
         dens[i] = sum(summation_density(j_mass, kn)) + kn0*i_mass
 
+        # Plot nearest neighbors
         # plt.scatter(x0, z0, c='red')
         # plt.scatter(j_x, j_z, c='green')
         # plt.scatter(i_x,i_z, c='blue')

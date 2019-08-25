@@ -21,7 +21,7 @@ def minmax(data):
 
 def scale(data):
     max_val = np.max(abs(data))
-    
+
     def rescaler(array):
         print("Rescaling with max={}".format(max_val))
         return array * max_val
@@ -72,7 +72,7 @@ inputs = layers.Input(shape=(4, ))
 x = layers.Dense(neurons, activation=act)(inputs)
 x = layers.Dense(neurons, activation=act)(x)
 x = layers.Dense(neurons, activation=act)(x)
-outputs = layers.Dense(1, activation='linear')(x)
+outputs = layers.Dense(1, activation='elu')(x)
 
 model = models.Model(inputs=inputs, outputs=outputs)
 tf.contrib.keras.utils.plot_model(model, to_file='multilayer_perceptron_graph.png')
@@ -85,12 +85,11 @@ model.compile(optimizer=opt,
 try:
     history = model.fit(X_train, y_train, epochs=10, batch_size=50,
                         callbacks=[early_stop], validation_split=0.01)
-
-    model.save("test.h5")
 except KeyboardInterrupt:
     pass
 
-model = models.load_model("test.h5")
+model.save("models/nn_cont.h5")
+# model = models.load_model("models/nn_cont.h5")
 ypred = model.predict(X_test)
 ytest = y_test
 comp = np.dstack((ytest.ravel(), ypred.ravel()))
@@ -98,16 +97,17 @@ print(comp)
 print(resc_cont(comp))
 
 b = time.time()
-pdiff = resc_pos(X_train[:, 0:2])
-vdiff = resc_vel(X_train[:, 2:4])
+pdiff = resc_pos(X_train[:1000, 0:2])
+vdiff = resc_vel(X_train[:1000, 2:4])
 _, dw = gaussian(pdiff, vdiff,h)
+y_test = continuity(vdiff, dw)
 a = time.time()
 t_real = a-b
 
 b = time.time()
-dwp = resc_cont(model.predict(X_train))
+y_pred = resc_cont(model.predict(X_train[:1000]))
 a = time.time()
 t_pred = a-b
 
 print("Real: {};  Pred: {}".format(t_real, t_pred))
-print(np.dstack((dw.ravel(), dwp.ravel())))
+print(np.dstack((y_test.ravel(), y_pred.ravel())))
