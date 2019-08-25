@@ -26,12 +26,13 @@ def save_data(c, xpos, zpos, xvel, zvel, density, xacc, zacc, drho):
 
 def plot(X, Z, C, domain, step, dt, *args, **kwargs):
     f = plt.figure(figsize=(20, 14))
-    plt.scatter(X, Z, c=C, cmap='viridis_r', alpha=0.6, *args, **kwargs)
-    plt.clim(940, 1060)
+    plt.scatter(X, Z, c=C, cmap='summer', alpha=0.6, *args, **kwargs)
+    plt.clim(0, 0.15)
     plt.colorbar()
     plt.title("T = {:.3f} s".format(step*dt))
-    plt.xlim(domain[0][0] - 0.1, domain[0][-1] + 0.1)
-    plt.ylim(domain[1][0] - 0.1, domain[1][-1] + 0.1)
+    # plt.xlim(domain[1][0]-0.05, domain[1][-1]+0.05)
+    # plt.ylim(domain[1][0]-0.05, domain[1][-1]+0.05)
+    f.axes[0].axis('equal')
     plt.savefig("{}/{}.png".format("sim", step), bbox_inches='tight')
     plt.close(f)
     return

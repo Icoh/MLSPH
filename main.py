@@ -17,9 +17,7 @@ def define_poiseuille(k, H, nu):
 check_dir("sim")
 check_dir("log")
 try:
-    logs = ["drho", "xdiff", "zdiff", "xvdiff", "zvdiff", "poise"]
-    for path in logs:
-        os.mkdir("log/" + path)
+    os.mkdir("log/simulation")
 except OSError as e:
     if e.errno != errno.EEXIST:
         raise
@@ -85,8 +83,8 @@ def periodize(x, z, xv, zv, m, d, p):
 # Run simulation
 h = zsp * 0.8
 support = 3
-dt = 0.0001
-tlim = 5
+dt = 0.0005
+tlim = 15
 
 print("Simulating SPH with {} particles.".format(N_real))
 print("Using  h = {:.5f};  dt = {};  c = {}".format(h, dt, C))
@@ -103,7 +101,7 @@ real_particles = np.array([True for _ in range(N_real)] + [False for _ in range(
 sim_particles = np.array([True for _ in range(N_real + N_wall)] + [False for _ in range(xp.size - N_real - N_wall)])
 nnp = nnps(support, h, xp, zp)
 xacc, zacc = calc_acc(xp, zp, xvp, zvp, mp, dp, pp, nnp[real_particles])
-drho, _, _, _, _ = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
+drho = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
 xpos = xpos + xvel * dt * 0.5
 zpos = zpos + zvel * dt * 0.5
 xvel = xvel + xacc * dt * 0.5
@@ -117,15 +115,17 @@ density[:N_real] = sumden
 dp[:N_real] = sumden
 print("Neighbours count range: {} - {}".format(min(map(len, nnp[:N_real])), max(map(len, nnp))))
 print("Density range from summation: {:.3f} - {:.3f}".format(min(sumden), max(sumden)))
-plot(xp, zp, dp, dom, 0, dt, s=size)
-max_nn_count = 0
-max_vel = 0
-
+with open("log/simulation/t{}.csv".format(0), "w+") as file:
+    writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    writer.writerow(["xpos", "zpos", "xvel", "zvel", "xacc", "zacc", "density", "drho"])
+    writer.writerows(zip(xpos, zpos, xvel, zvel, xacc, zacc, density, drho))
+plot(xp, zp, np.sqrt(xvp**2 + zvp**2), dom, 0, dt, s=size)
+c = 0
 try:
     for c, t in enumerate(time_range, 1):
         # Leapfrog scheme: first integrate from previous halfstep, then use this in integrate once again.
         nnp = nnps(support, h, xp, zp)
-        drho, _, _, _, _ = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
+        drho = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
         density_half = density + drho * dt * 0.5
         xacc, zacc = calc_acc(*periodize(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half),
                               nnp[real_particles])
@@ -142,7 +142,7 @@ try:
         xpos = xpos_half + xvel * dt * 0.5
         zpos = zpos_half + zvel * dt * 0.5
         xp, zp, xvp, zvp, mp, _, _ = periodize(xpos, zpos, xvel, zvel, mass, density, pressure)
-        drho, xdists, zdists, xvdiffs, zvdiffs = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
+        drho = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
         density = density_half + drho * dt * 0.5
         pressure = eos(density)
 
@@ -151,7 +151,7 @@ try:
 
         if not c % 100:
             elapsed = time() - start
-            plot(xpos, zpos, density, dom, c, dt, s=size)
+            plot(xpos, zpos, np.sqrt(xvel**2 + zvel**2), dom, c, dt, s=size)
             nnsize = list(map(len, nnp[:N_real]))
             print("> Progress = {:.2f}%".format(t / tlim * 100))
             print("  - Density range: {:.3f} - {:.3f}".format(min(density), max(density)))
@@ -161,26 +161,14 @@ try:
             with open("log/poise/t{}.csv".format(c), "w+") as file:
                 writer = csv.writer(file)
                 writer.writerows(zip(xvel, zpos))
-        # if not c % 100:
-        #     with open("log/xdiff/t{}.csv".format(c), "w+") as file:
-        #         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        #         writer.writerows(xdists)
-        #     with open("log/zdiff/t{}.csv".format(c), "w+") as file:
-        #         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        #         writer.writerows(zdists)
-        #     with open("log/xvdiff/t{}.csv".format(c), "w+") as file:
-        #         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        #         writer.writerows(xvdiffs)
-        #     with open("log/zvdiff/t{}.csv".format(c), "w+") as file:
-        #         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        #         writer.writerows(zvdiffs)
-        #     with open("log/drho/t{}.csv".format(c), "w+") as file:
-        #         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        #         writer.writerows(drho.reshape((-1, 1)))
+            with open("log/simulation/t{}.csv".format(c), "w+") as file:
+                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(["xpos", "zpos", "xvel", "zvel", "xacc", "zacc", "density", "drho"])
+                writer.writerows(zip(xpos, zpos, xvel, zvel, xacc, zacc, density, drho))
 except KeyboardInterrupt:
     print("Early manually interrupted.")
 
-with open("log/poise/last.csv", "w+") as file:
+with open("log/poise/{}.csv".format(c), "w+") as file:
     writer = csv.writer(file)
     writer.writerows(zip(xvel, zpos))
 
