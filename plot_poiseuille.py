@@ -37,9 +37,9 @@ c = 30
 alpha = 1
 support = 3
 h = 0.01103
-nu = alpha*c*h/8
+nu = alpha*c*h/(8*support)
 H = 0.4
-k = 0.05/0.19526
+k = 0.05
 
 poise = define_poiseuille(k, H, nu)
 z = np.linspace(0, H, 100)
@@ -60,7 +60,7 @@ nb = find_max_nb(["log/poise/{}".format(files[0])])
 #     plt.plot(xpos, zvel, 'k.')
 #     plt.savefig("log/poise_plots/{}".format(i), bbox_inches='tight')
 #     plt.close(fig)
-
+#
 df = pd.read_csv("log/poise/{}".format(files[-1]), names=[i for i in range(nb)]).fillna(0)
 xpos = df[0].values
 zvel = df[1].values

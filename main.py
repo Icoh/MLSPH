@@ -16,11 +16,13 @@ def define_poiseuille(k, H, nu):
 
 check_dir("sim")
 check_dir("log")
-try:
-    os.mkdir("log/simulation")
-except OSError as e:
-    if e.errno != errno.EEXIST:
-        raise
+paths = ["log/params", "log/simulation"]
+for path in paths:
+    try:
+        os.mkdir(path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
 
 # Parameters
 dim = 2
@@ -83,8 +85,12 @@ def periodize(x, z, xv, zv, m, d, p):
 # Run simulation
 h = zsp * 0.8
 support = 3
-dt = 0.0005
-tlim = 15
+dt = 0.00005
+tlim = 5
+with open("log/params/values.csv".format(0), "w+") as file:
+    writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    writer.writerow(["h", "support", "dt", "tlim", "C"])
+    writer.writerow([h, support, dt, tlim, C])
 
 print("Simulating SPH with {} particles.".format(N_real))
 print("Using  h = {:.5f};  dt = {};  c = {}".format(h, dt, C))
@@ -158,6 +164,7 @@ try:
             print("  - Neighbours count range: {} - {}".format(min(nnsize), max(nnsize)))
             print("  - Time elapsed: {:.2f}s".format(elapsed))
             print("  - ETA: {:.2f}s".format((tl - c) * elapsed / c))
+        if not c % 10:
             with open("log/poise/t{}.csv".format(c), "w+") as file:
                 writer = csv.writer(file)
                 writer.writerows(zip(xvel, zpos))
