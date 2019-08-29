@@ -122,7 +122,7 @@ print("y test shape:", y_test_dkn.shape)
 X_train, X_test = list(X_train), list(X_test)
 
 # Define Neural Network Model
-act = 'relu'
+act = 'elu'
 
 inputs_pos, hidden = list(), list()
 for i in range(N):
@@ -131,16 +131,17 @@ for i in range(N):
 x = layers.concatenate(inputs_pos)
 x = layers.Dense(8 * N, activation=act)(x)
 x = layers.Dense(8 * N, activation=act)(x)
-# x = layers.Dense(4*N, activation=act)(x)
+x = layers.Dense(2 * N, activation=act)(x)
 out_pos = layers.Dense(2 * N, activation='linear')(x)
 
 inputs_vel = list()
 for i in range(N):
     inputs_vel.append(layers.Input(shape=(2,)))
 z_drho = layers.concatenate(inputs_vel)
-z_drho = layers.Dot(axes=-1)([out_pos, z_drho])
-z_drho = layers.Dense(4 * N, activation=act)(z_drho)
-z_drho = layers.Dense(4 * N, activation=act)(z_drho)
+z_drho = layers.Dense(8 * N, activation=act)(z_drho)
+z_drho = layers.Dot(axes=-1)([x, z_drho])
+z_drho = layers.Dense(8 * N, activation=act)(z_drho)
+z_drho = layers.Dense(2 * N, activation=act)(z_drho)
 out_vel = layers.Dense(N, activation='linear')(z_drho)
 
 model = models.Model(inputs=[inputs_pos, inputs_vel], outputs=[out_pos, out_vel])
@@ -151,8 +152,7 @@ opt = optimizers.Adam(lr=1e-3, decay=1e-5)
 model.compile(optimizer=opt,
               loss=['mean_squared_error', 'mean_squared_error'],
               loss_weights=[1.0, 1.0]
-              # ,metrics=['mean_absolute_error', 'mean_squared_error']
-              )
+              , metrics=['mean_absolute_percentage_error'])
 try:
     history = model.fit(X_train, [y_train_dkn, y_train_drho], epochs=100, batch_size=5,
                         callbacks=[early_stop], validation_split=0.01, shuffle=True)

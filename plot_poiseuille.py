@@ -37,9 +37,9 @@ c = 30
 alpha = 1
 support = 3
 h = 0.01103
-nu = alpha*c*h/(8*support)
+nu = alpha*c*h/(8)
 H = 0.4
-k = 0.05
+k = 0.05/0.06
 
 poise = define_poiseuille(k, H, nu)
 z = np.linspace(0, H, 100)

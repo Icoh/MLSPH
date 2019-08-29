@@ -31,7 +31,7 @@ C = 30
 eos = partial(eos_tait, C)
 
 # Initialize particle positions (staggered cubic lattice)
-ndim = np.array([15, 30])
+ndim = np.array([19, 38])
 px = np.linspace(0.0, 0.2, ndim[0])
 pz = np.linspace(0.0, 0.4, ndim[1])
 xsp = (px[-1] - px[0]) / (ndim[0]-1)
@@ -58,7 +58,7 @@ zpos = np.concatenate((zpos, zwall), axis=0)
 N_all = xpos.size
 xvel = np.zeros(N_all, dtype=np.float64)
 zvel = np.zeros(N_all, dtype=np.float64)
-mass = 0.19526 * np.ones(N_all, dtype=np.float64)
+mass = 0.1191 * np.ones(N_all, dtype=np.float64)
 density = 1000 * np.ones(N_all, dtype=np.float64)
 pressure = eos(density)
 
@@ -86,7 +86,7 @@ def periodize(x, z, xv, zv, m, d, p):
 h = zsp * 0.8
 support = 3
 dt = 0.00005
-tlim = 5
+tlim = 30
 with open("log/params/values.csv".format(0), "w+") as file:
     writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     writer.writerow(["h", "support", "dt", "tlim", "C"])
@@ -164,7 +164,7 @@ try:
             print("  - Neighbours count range: {} - {}".format(min(nnsize), max(nnsize)))
             print("  - Time elapsed: {:.2f}s".format(elapsed))
             print("  - ETA: {:.2f}s".format((tl - c) * elapsed / c))
-        if not c % 10:
+        if not c % 100:
             with open("log/poise/t{}.csv".format(c), "w+") as file:
                 writer = csv.writer(file)
                 writer.writerows(zip(xvel, zpos))
