@@ -4,7 +4,7 @@ from tools import check_dir, unit, plot, wall_gen
 from functools import partial
 from time import time
 from tensorflow.contrib.keras import models
-import state_image as sti
+import process_data as sti
 import scipy.linalg as lin
 import os, errno
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'

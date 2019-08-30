@@ -3,6 +3,7 @@ import scipy.linalg as lin
 import scipy.spatial as sp
 from kernel import kernel
 from tools import unit
+import matplotlib.pyplot as plt
 
 
 def eos_tait(c, rho):
@@ -32,14 +33,13 @@ def pressure_term(mass, rhoa, pressa, rhob, pressb, dkernel):
 
 def artif_visc(h, mass, dist, r, vdiff, rhoa, rhob, dkernel):
     alpha = 1.
-    beta = 0
     c = 30.
     dot = np.sum(dist*vdiff, axis=-1)
     trues = dot < 0
     mu = (h * dot/(r.ravel()**2 + 0.01 * h**2))[trues]
     drho = (rhoa + rhob)[trues] / 2
     visc = np.zeros_like(dot)
-    visc[trues] = ((-alpha * c * mu) + beta * mu ** 2)/drho
+    visc[trues] = (-alpha * c * mu)/drho
     visc.shape = (visc.size, 1)
     return -mass * visc * dkernel
 

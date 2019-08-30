@@ -16,7 +16,7 @@ def define_poiseuille(k, H, nu):
 
 check_dir("sim")
 check_dir("log")
-paths = ["log/params", "log/simulation"]
+paths = ["log/params", "log/inputs", "log/targets"]
 for path in paths:
     try:
         os.mkdir(path)
@@ -26,17 +26,17 @@ for path in paths:
 
 # Parameters
 dim = 2
-dom = [[0., 0.2], [0., 0.4]]
+dom = [[0., 0.1], [0., 0.4]]
 C = 30
 eos = partial(eos_tait, C)
+nx, nz = 10, 40
 
-# Initialize particle positions (staggered cubic lattice)
-ndim = np.array([19, 38])
-px = np.linspace(0.0, 0.2, ndim[0])
-pz = np.linspace(0.0, 0.4, ndim[1])
-xsp = (px[-1] - px[0]) / (ndim[0]-1)
-zsp = (pz[-1] - pz[0]) / (ndim[1]-1)
-size = (2000 * xsp) ** 1.5
+# Initialize particle positions
+px = np.linspace(0.0, 0.1, nx)
+pz = np.linspace(0.0, 0.4, nz)
+xsp = (px[-1] - px[0]) / (nx-1)
+zsp = (pz[-1] - pz[0]) / (nz-1)
+scatter_size = (2000 * xsp) ** 1.5
 xpos, zpos = np.meshgrid(px, pz)
 xpos, zpos = xpos.ravel(), zpos.ravel()
 N_real = xpos.size
@@ -58,7 +58,7 @@ zpos = np.concatenate((zpos, zwall), axis=0)
 N_all = xpos.size
 xvel = np.zeros(N_all, dtype=np.float64)
 zvel = np.zeros(N_all, dtype=np.float64)
-mass = 0.1191 * np.ones(N_all, dtype=np.float64)
+mass = 0.11365 * np.ones(N_all, dtype=np.float64)
 density = 1000 * np.ones(N_all, dtype=np.float64)
 pressure = eos(density)
 
@@ -83,9 +83,9 @@ def periodize(x, z, xv, zv, m, d, p):
 
 
 # Run simulation
-h = zsp * 0.8
+h = zsp * 0.9
 support = 3
-dt = 0.00005
+dt = 0.0001
 tlim = 30
 with open("log/params/values.csv".format(0), "w+") as file:
     writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -100,82 +100,103 @@ calc_acc = partial(calculate_accel, h, N_all)
 calc_cont = partial(calculate_continuity, h, N_all)
 start = time()
 
-# Perform first half-step to use leap-frog scheme subsequently. The old values will serve as the previous
-# half-step, while the new values will serve as initial setup.
 xp, zp, xvp, zvp, mp, dp, pp = periodize(xpos, zpos, xvel, zvel, mass, density, pressure)
-real_particles = np.array([True for _ in range(N_real)] + [False for _ in range(xp.size - N_real)])
-sim_particles = np.array([True for _ in range(N_real + N_wall)] + [False for _ in range(xp.size - N_real - N_wall)])
-nnp = nnps(support, h, xp, zp)
-xacc, zacc = calc_acc(xp, zp, xvp, zvp, mp, dp, pp, nnp[real_particles])
-drho = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
-xpos = xpos + xvel * dt * 0.5
-zpos = zpos + zvel * dt * 0.5
-xvel = xvel + xacc * dt * 0.5
-zvel = zvel + zacc * dt * 0.5
-density = density + drho * dt * 0.5
-pressure = eos(density)
-
 nnp = nnps(support, h, xp, zp)
 sumden = calculate_density(h, xp, zp, mp, nnp)[:N_real]
 density[:N_real] = sumden
 dp[:N_real] = sumden
 print("Neighbours count range: {} - {}".format(min(map(len, nnp[:N_real])), max(map(len, nnp))))
 print("Density range from summation: {:.3f} - {:.3f}".format(min(sumden), max(sumden)))
-with open("log/simulation/t{}.csv".format(0), "w+") as file:
+
+with open("log/inputs/t{}.csv".format(0), "w+") as file:
     writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    writer.writerow(["xpos", "zpos", "xvel", "zvel", "xacc", "zacc", "density", "drho"])
-    writer.writerows(zip(xpos, zpos, xvel, zvel, xacc, zacc, density, drho))
-plot(xp, zp, np.sqrt(xvp**2 + zvp**2), dom, 0, dt, s=size)
+    writer.writerow(["xpos", "zpos", "xvel", "zvel"])
+    writer.writerows(zip(xp, zp, xvp, zvp))
+with open("log/targets/t{}.csv".format(0), "w+") as file:
+    writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    writer.writerow(["xacc", "zacc", "density", "drho"])
+    zeros = np.zeros_like(density)
+    writer.writerows(zip(zeros, zeros, density, zeros))
+plot(xp, zp, np.sqrt(xvp**2 + zvp**2), dom, 0, dt, s=scatter_size)
+
+# Perform first half-step to use leap-frog scheme subsequently. The old values will serve as the previous
+# half-step, while the new values will serve as initial setup.
+N_sim = N_real + N_wall
+nnp = nnps(support, h, xp, zp)
+xacc, zacc = calc_acc(xp, zp, xvp, zvp, mp, dp, pp, nnp[:N_real])
+drho = calc_cont(xp, zp, xvp, zvp, mp, nnp[:N_sim])
+xpos = xpos + xvel * dt * 0.5
+zpos = zpos + zvel * dt * 0.5
+xvel = xvel + xacc * dt * 0.5
+zvel = zvel + zacc * dt * 0.5
+density = density + drho * dt * 0.5
+pressure = eos(density)
+xp, zp, xvp, zvp, mp, dp, pp = periodize(xpos, zpos, xvel, zvel, mass, density, pressure)
+
 c = 0
 try:
     for c, t in enumerate(time_range, 1):
-        # Leapfrog scheme: first integrate from previous halfstep, then use this in integrate once again.
-        nnp = nnps(support, h, xp, zp)
-        drho = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
-        density_half = density + drho * dt * 0.5
+        # Save initial positions and velocities (right before performing first time step)
+        if not c % 50:
+            with open("log/inputs/t{}.csv".format(c), "w+") as file:
+                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(["xpos", "zpos", "xvel", "zvel"])
+                writer.writerows(zip(xp, zp, xvp, zvp))
+
+        # Leap-frog scheme: first integrate from previous halfstep, then use this to integrate once again.
+        # First leap-frog step
+        drho = calc_cont(xp, zp, xvp, zvp, mp, nnp[:N_sim])
         xacc, zacc = calc_acc(*periodize(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half),
-                              nnp[real_particles])
+                              nnp[:N_real])
         xpos_half = xpos + xvel * dt * 0.5
         zpos_half = zpos + zvel * dt * 0.5
         xvel_half = xvel + xacc * dt * 0.5
         zvel_half = zvel + zacc * dt * 0.5
+        density_half = density + drho * dt * 0.5
         pressure_half = eos(density_half)
 
+        # Second leap-frog step
         xacc, zacc = calc_acc(*periodize(xpos_half, zpos_half, xvel_half, zvel_half, mass, density_half, pressure_half),
-                              nnp[real_particles])
+                              nnp[:N_real])
         xvel = xvel + xacc * dt
         zvel = zvel + zacc * dt
         xpos = xpos_half + xvel * dt * 0.5
         zpos = zpos_half + zvel * dt * 0.5
-        xp, zp, xvp, zvp, mp, _, _ = periodize(xpos, zpos, xvel, zvel, mass, density, pressure)
-        drho = calc_cont(xp, zp, xvp, zvp, mp, nnp[sim_particles])
-        density = density_half + drho * dt * 0.5
-        pressure = eos(density)
 
+        # When particles leave the right-side domain, they are restored to the left-side domain.
         out = xpos > dom[0][1]+xsp
         xpos[out] = xpos[out]-(dom[0][1]+xsp)
 
+        xp, zp, xvp, zvp, mp, _, _ = periodize(xpos, zpos, xvel, zvel, mass, density, pressure)
+        nnp = nnps(support, h, xp, zp)
+        drho = calc_cont(xp, zp, xvp, zvp, mp, nnp[:N_sim])
+        density = density_half + drho * dt * 0.5
+        pressure = eos(density)
+
+        # Save rate of changes at the end of timestep corresponding to the initial positions and velocities
+        if not c % 50:
+            with open("log/poise/t{}.csv".format(c), "w+") as file:
+                writer = csv.writer(file)
+                writer.writerows(zip(xvel, zpos))
+            with open("log/targets/t{}.csv".format(c), "w+") as file:
+                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(["xacc", "zacc", "density", "drho"])
+                writer.writerows(zip(xacc, zacc, density, drho))
+
         if not c % 100:
             elapsed = time() - start
-            plot(xpos, zpos, np.sqrt(xvel**2 + zvel**2), dom, c, dt, s=size)
+            plot(xpos, zpos, np.sqrt(xvel**2 + zvel**2), dom, c, dt, s=scatter_size)
             nnsize = list(map(len, nnp[:N_real]))
             print("> Progress = {:.2f}%".format(t / tlim * 100))
             print("  - Density range: {:.3f} - {:.3f}".format(min(density), max(density)))
             print("  - Neighbours count range: {} - {}".format(min(nnsize), max(nnsize)))
+            print("  - Max x velocity: {:.3f}".format(max(xvel)))
             print("  - Time elapsed: {:.2f}s".format(elapsed))
             print("  - ETA: {:.2f}s".format((tl - c) * elapsed / c))
-        if not c % 100:
-            with open("log/poise/t{}.csv".format(c), "w+") as file:
-                writer = csv.writer(file)
-                writer.writerows(zip(xvel, zpos))
-            with open("log/simulation/t{}.csv".format(c), "w+") as file:
-                writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                writer.writerow(["xpos", "zpos", "xvel", "zvel", "xacc", "zacc", "density", "drho"])
-                writer.writerows(zip(xpos, zpos, xvel, zvel, xacc, zacc, density, drho))
 except KeyboardInterrupt:
     print("Early manually interrupted.")
 
-with open("log/poise/{}.csv".format(c), "w+") as file:
+with open("log/poise/t{}.csv".format(c), "w+") as file:
     writer = csv.writer(file)
     writer.writerows(zip(xvel, zpos))
 

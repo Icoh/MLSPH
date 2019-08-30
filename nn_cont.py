@@ -20,12 +20,12 @@ def minmax(data):
 
 
 def scale(data):
-    max_val = np.max(abs(data))
+    min_val = np.min(data)
 
     def rescaler(array):
-        print("Rescaling with max={}".format(max_val))
-        return array * max_val
-    return data/max_val, rescaler
+        print("Rescaling with max={}".format(min_val))
+        return array + min_val
+    return data - min_val, rescaler
 
 
 def continuity(vdiff, dkernel, m=0.2):
@@ -41,7 +41,7 @@ def gaussian(r, unit_vect, h, dim=2):
 
 h = 0.01103
 support = 3
-samples = 10000000
+samples = 1000000
 print("samples: ", samples)
 norms = np.random.rand(samples, 1) * support * h
 units = normalize((np.random.rand(samples, 2) * np.random.choice([-1, 0, 1], (samples,2))))
@@ -57,8 +57,8 @@ print("cont", cont[:3])
 
 X = np.zeros((samples, 4))
 
-X[:, 0:2], resc_pos = minmax(posdiff)
-X[:, 2:4], resc_vel = minmax(veldiff)
+X[:, 0:2], resc_pos = scale(posdiff)
+X[:, 2:4], resc_vel = scale(veldiff)
 y, resc_cont = minmax(cont)
 print(X[:3], np.min(X), np.max(X))
 print(y[:3], np.min(y), np.max(y))
@@ -67,23 +67,23 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.001)
 
 neurons = 10
 drop = 0.1
-act = 'elu'
+act = 'relu'
 inputs = layers.Input(shape=(4, ))
 x = layers.Dense(neurons, activation=act)(inputs)
 x = layers.Dense(neurons, activation=act)(x)
 x = layers.Dense(neurons, activation=act)(x)
-outputs = layers.Dense(1, activation='elu')(x)
+outputs = layers.Dense(1, activation='linear')(x)
 
 model = models.Model(inputs=inputs, outputs=outputs)
 tf.contrib.keras.utils.plot_model(model, to_file='multilayer_perceptron_graph.png')
 model.summary()
-early_stop = callbacks.EarlyStopping(monitor='val_mean_absolute_percentage_error', patience=5)
+early_stop = callbacks.EarlyStopping(monitor='val_mean_absolute_percentage_error', patience=10)
 opt = optimizers.Adam(lr=1e-3, decay=1e-5)
 model.compile(optimizer=opt,
               loss='mean_squared_error',
-              metrics=['mean_absolute_error', 'mean_absolute_percentage_error'])
+              metrics=['mean_absolute_percentage_error'])
 try:
-    history = model.fit(X_train, y_train, epochs=10, batch_size=50,
+    history = model.fit(X_train, y_train, epochs=100, batch_size=5,
                         callbacks=[early_stop], validation_split=0.01)
 except KeyboardInterrupt:
     pass

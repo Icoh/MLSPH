@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.linalg as lin
-# from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import normalize
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -11,13 +11,13 @@ from equations import nnps
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-
-def split_train_test(data, targets, test):
-    samples = targets.shape[0]
-    split = int(samples * test)
-    x_tr, x_ts = data[:, split:], data[:, :split]
-    y_tr, y_ts = targets[split:], targets[:split]
-    return x_tr, x_ts, y_tr, y_ts
+#
+# def split_train_test(data, targets, test):
+#     samples = targets.shape[0]
+#     split = int(samples * test)
+#     x_tr, x_ts = data[split:], data[:split]
+#     y_tr, y_ts = targets[split:], targets[:split]
+#     return x_tr, x_ts, y_tr, y_ts
 
 
 def minmax(data):
@@ -65,24 +65,25 @@ def continuity(vdiff, dkernel, m=0.2):
 h = 0.01103
 support = 3
 
-data_path = "log/datafile_10"
+data_path = "log/datafile"
 print("Reading Dataset...")
 hf = h5py.File(data_path, mode='r+')
 
-pos = np.array(hf.get('pos'))
-vel = np.array(hf.get('vel'))
-rho = np.array(hf.get('density'))
-acc = np.array(hf.get('acc'))
-drho = np.array(hf.get('drho'))
-n_files, N = np.array(hf.get('stats'))
+sample = 2000
+pos = np.array(hf.get('pos'))[:sample]
+vel = np.array(hf.get('vel'))[:sample]
+rho = np.array(hf.get('density'))[:sample]
+acc = np.array(hf.get('acc'))[:sample]
+drho = np.array(hf.get('drho'))[:sample]
+n_files, N_in, N_out = np.array(hf.get('stats'))
 
-dkn = np.array(hf.get('dkn'))
+dkn = np.array(hf.get('dkn'))[:sample]
 if None in dkn:
     print(' -Calculating dkernels...')
-    dkn = np.zeros((n_files, N, 2))
+    dkn = np.zeros((n_files, N_out, 2))
     for i, x in enumerate(pos):
         nnbs = nnps(support, h, x[:, 0], x[:, 1])
-        dkn[i] = calculate_kernel(h, N, x[:, 0], x[:, 1], nnbs)
+        dkn[i] = calculate_kernel(h, N_out, x[:, 0], x[:, 1], nnbs[:N_out])
     hf.create_dataset('dkn', data=dkn)
 print('Done!')
 hf.close()
@@ -96,65 +97,65 @@ mm_vel, sc_vel, resc_vel = minmax(vel)
 mm_drho, sc_drho, resc_drho = minmax(drho)
 mm_dkn, sc_dkn, resc_dkn = minmax(dkn)
 
-print("Samples:", n_files)
-print("Number of particles:", N)
+print("Samples:", sample)
+print("Number of input particles:", N_out)
+print("Number of output particles:", N_out)
 print("Preparing features and labels...")
 vars = 2
-X = np.zeros((N, n_files, vars))
-V = np.zeros((N, n_files, vars))
-y_dkn = np.zeros((n_files, 2 * N))
-y_drho = np.zeros((n_files, N))
-X[:, :, 0] = mm_pos[:, :, 0].transpose()
-X[:, :, 1] = mm_pos[:, :, 1].transpose()
-V[:, :, 0] = mm_vel[:, :, 0].transpose()
-V[:, :, 1] = mm_vel[:, :, 1].transpose()
-X = np.concatenate((X, V), axis=0)
-y_dkn[:, :N] = mm_dkn[:, :, 0]
-y_dkn[:, N:] = mm_dkn[:, :, 1]
-y_drho[:, :N] = mm_drho[:, :, 0]
+X = np.zeros((sample, N_in*vars))
+V = np.zeros((sample, N_in*vars))
+y_dkn = np.zeros((sample, 2*N_out))
+y_drho = np.zeros((sample, N_out))
+X[:, :N_in] = mm_pos[:, :, 0]
+X[:, N_in:] = mm_pos[:, :, 1]
 
-X_train, X_test, y_train_dkn, y_test_dkn = split_train_test(X, y_dkn, 0.01)
-_, _, y_train_drho, y_test_drho = split_train_test(X, y_drho, 0.01)
+y_dkn[:, :N_out] = mm_dkn[:, :, 0]
+y_dkn[:, N_out:] = mm_dkn[:, :, 1]
+y_drho[:, :N_out] = mm_drho[:, :, 0]
+
+X_train, X_test, y_train_dkn, y_test_dkn = train_test_split(X, y_dkn, test_size=0.01)
 print("X train shape:", X_train.shape)
 print("y train shape:", y_train_dkn.shape)
 print("X test shape:", X_test.shape)
 print("y test shape:", y_test_dkn.shape)
-X_train, X_test = list(X_train), list(X_test)
+# X_train, X_test = list(X_train), list(X_test)
 
 # Define Neural Network Model
-act = 'elu'
+act = 'relu'
 
-inputs_pos, hidden = list(), list()
-for i in range(N):
-    inputs_pos.append(layers.Input(shape=(2,)))
-    # hidden.append(layers.Dense(1, activation=act)(inputs[i]))
-x = layers.concatenate(inputs_pos)
-x = layers.Dense(8 * N, activation=act)(x)
-x = layers.Dense(8 * N, activation=act)(x)
-x = layers.Dense(2 * N, activation=act)(x)
-out_pos = layers.Dense(2 * N, activation='linear')(x)
+inputs = layers.Input(shape=(N_in*vars,))
+x = layers.Reshape((N_in, vars))(inputs)
+x = layers.Conv1D(N_out, 20, activation=act)(x)
+x = layers.Conv1D(N_out, 20, activation=act)(x)
+x = layers.MaxPooling1D(5)(x)
+x = layers.Conv1D(N_out, 20, activation=act)(x)
+x = layers.Conv1D(N_out, 20, activation=act)(x)
+x = layers.GlobalAveragePooling1D()(x)
+x = layers.Dropout(0.5)(x)
+out1 = layers.Dense(N_out, activation='linear')(x)
+out2 = layers.Dense(N_out, activation='linear')(x)
+#
+# inputs_vel = list()
+# for i in range(N):
+#     inputs_vel.append(layers.Input(shape=(2,)))
+# z_drho = layers.concatenate(inputs_vel)
+# z_drho = layers.Dense(8 * N, activation=act)(z_drho)
+# z_drho = layers.Dot(axes=-1)([x, z_drho])
+# z_drho = layers.Dense(8 * N, activation=act)(z_drho)
+# z_drho = layers.Dense(2 * N, activation=act)(z_drho)
+# out_vel = layers.Dense(N, activation='linear')(z_drho)
 
-inputs_vel = list()
-for i in range(N):
-    inputs_vel.append(layers.Input(shape=(2,)))
-z_drho = layers.concatenate(inputs_vel)
-z_drho = layers.Dense(8 * N, activation=act)(z_drho)
-z_drho = layers.Dot(axes=-1)([x, z_drho])
-z_drho = layers.Dense(8 * N, activation=act)(z_drho)
-z_drho = layers.Dense(2 * N, activation=act)(z_drho)
-out_vel = layers.Dense(N, activation='linear')(z_drho)
-
-model = models.Model(inputs=[inputs_pos, inputs_vel], outputs=[out_pos, out_vel])
+model = models.Model(inputs=inputs, outputs=[out1, out2])
 # tf.contrib.keras.utils.plot_model(model, to_file='multilayer_perceptron_graph.png')
 model.summary()
 early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=10)
 opt = optimizers.Adam(lr=1e-3, decay=1e-5)
 model.compile(optimizer=opt,
               loss=['mean_squared_error', 'mean_squared_error'],
-              loss_weights=[1.0, 1.0]
-              , metrics=['mean_absolute_percentage_error'])
+              loss_weights=[1,1],
+              metrics=['mean_absolute_percentage_error'])
 try:
-    history = model.fit(X_train, [y_train_dkn, y_train_drho], epochs=100, batch_size=5,
+    history = model.fit(X_train, [y_train_dkn[:, :N_out], y_train_dkn[:, N_out:]], epochs=100, batch_size=10,
                         callbacks=[early_stop], validation_split=0.01, shuffle=True)
 except KeyboardInterrupt:
     pass
@@ -170,8 +171,7 @@ model.save("models/nn_full.h5")
 # t_real = a-b
 
 b = time.time()
-y_pred_dkn, y_pred_drho = model.predict(X_test)
-y_pred_dkn, y_pred_drho = resc_dkn(y_pred_dkn), resc_drho(y_pred_drho)
+y_pred_dkn = resc_dkn(model.predict(X_test))
 a = time.time()
 t_pred = a - b
 
@@ -179,9 +179,9 @@ print("Pred: {}s".format(t_pred))
 print("dkernels")
 print(np.dstack((y_test_dkn.ravel(), sc_dkn(y_pred_dkn.ravel()))))
 print(np.dstack((resc_dkn(y_test_dkn.ravel()), y_pred_dkn.ravel())))
-print('drhos')
-print(np.dstack((y_test_drho.ravel(), sc_dkn(y_pred_drho.ravel()))))
-print(np.dstack((resc_dkn(y_test_drho.ravel()), y_pred_drho.ravel())))
+# print('drhos')
+# print(np.dstack((y_test_drho.ravel(), sc_dkn(y_pred_drho.ravel()))))
+# print(np.dstack((resc_dkn(y_test_drho.ravel()), y_pred_drho.ravel())))
 
 errs = (abs(sc_dkn(y_test_dkn.ravel()) - y_pred_dkn.ravel()))
 plt.plot(resc_dkn(y_test_dkn.ravel()), errs, 'k.')
