@@ -28,7 +28,7 @@ def scale(data):
     return data - min_val, rescaler
 
 
-def continuity(vdiff, dkernel, m=0.2):
+def continuity(vdiff, dkernel, m=0.11365):
     return m * np.sum(vdiff * dkernel, axis=-1)
 
 
@@ -39,14 +39,14 @@ def gaussian(r, unit_vect, h, dim=2):
     return g, dg
 
 
-h = 0.01103
+h = 0.009231
 support = 3
-samples = 1000000
+samples = int(2e6)
 print("samples: ", samples)
 norms = np.random.rand(samples, 1) * support * h
 units = normalize((np.random.rand(samples, 2) * np.random.choice([-1, 0, 1], (samples,2))))
 posdiff = norms*units
-veldiff = 0.05*(np.random.rand(samples, 2) * np.random.choice([-1, 0, 1], (samples,2)))
+veldiff = 0.01*(np.random.rand(samples, 2) * np.random.choice([-1, -1, 0, 1, 1], (samples,2)))
 kn, dkn = gaussian(norms, units, h)
 cont = continuity(veldiff, dkn).reshape(-1,1)
 print("norms", norms[:3])
@@ -57,15 +57,15 @@ print("cont", cont[:3])
 
 X = np.zeros((samples, 4))
 
-X[:, 0:2], resc_pos = scale(posdiff)
-X[:, 2:4], resc_vel = scale(veldiff)
-y, resc_cont = minmax(cont)
+X[:, 0:2], resc_pos = minmax(posdiff)
+X[:, 2:4], resc_vel = minmax(veldiff)
+y, resc_cont = scale(cont)
 print(X[:3], np.min(X), np.max(X))
 print(y[:3], np.min(y), np.max(y))
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.001)
 
-neurons = 10
+neurons = 200
 drop = 0.1
 act = 'relu'
 inputs = layers.Input(shape=(4, ))
@@ -83,7 +83,7 @@ model.compile(optimizer=opt,
               loss='mean_squared_error',
               metrics=['mean_absolute_percentage_error'])
 try:
-    history = model.fit(X_train, y_train, epochs=100, batch_size=5,
+    history = model.fit(X_train, y_train, epochs=10, batch_size=50,
                         callbacks=[early_stop], validation_split=0.01)
 except KeyboardInterrupt:
     pass
@@ -96,16 +96,17 @@ comp = np.dstack((ytest.ravel(), ypred.ravel()))
 print(comp)
 print(resc_cont(comp))
 
+sample = 100000
 b = time.time()
-pdiff = resc_pos(X_train[:1000, 0:2])
-vdiff = resc_vel(X_train[:1000, 2:4])
+pdiff = resc_pos(X_train[:sample, 0:2])
+vdiff = resc_vel(X_train[:sample, 2:4])
 _, dw = gaussian(pdiff, vdiff,h)
 y_test = continuity(vdiff, dw)
 a = time.time()
 t_real = a-b
 
 b = time.time()
-y_pred = resc_cont(model.predict(X_train[:1000]))
+y_pred = resc_cont(model.predict(X_train[:sample], batch_size=sample))
 a = time.time()
 t_pred = a-b
 

@@ -36,10 +36,10 @@ def find_max_nb(files, path=''):
 c = 30
 alpha = 1
 support = 3
-h = 0.009230769230769232
-nu = alpha*c*h*support/8
+h = 0.009231
+nu = alpha*c*h/(8*2.75)
 H = 0.4
-k = 0.05/0.11365
+k = 0.05
 
 poise = define_poiseuille(k, H, nu)
 z = np.linspace(0, H, 100)
@@ -49,7 +49,7 @@ files = sorted(os.listdir("log/poise"), key=lambda x: float(re.findall('\d+', x)
 nb = find_max_nb(["log/poise/{}".format(files[0])])
 
 for i, file in enumerate(files):
-    if not i%100:
+    if not i%50:
         print(i)
         df = pd.read_csv("log/poise/{}".format(file), names=[i for i in range(nb)]).fillna(0)
         xpos = df[0].values

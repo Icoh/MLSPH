@@ -16,7 +16,7 @@ def define_poiseuille(k, H, nu):
 
 check_dir("sim")
 check_dir("log")
-paths = ["log/params", "log/inputs", "log/targets"]
+paths = ["log/params", "log/inputs", "log/targets", "log/poise"]
 for path in paths:
     try:
         os.mkdir(path)
@@ -30,6 +30,8 @@ dom = [[0., 0.1], [0., 0.4]]
 C = 30
 eos = partial(eos_tait, C)
 nx, nz = 10, 40
+m = 0.11365
+rho0 = 1000
 
 # Initialize particle positions
 px = np.linspace(0.0, 0.1, nx)
@@ -58,8 +60,8 @@ zpos = np.concatenate((zpos, zwall), axis=0)
 N_all = xpos.size
 xvel = np.zeros(N_all, dtype=np.float64)
 zvel = np.zeros(N_all, dtype=np.float64)
-mass = 0.11365 * np.ones(N_all, dtype=np.float64)
-density = 1000 * np.ones(N_all, dtype=np.float64)
+mass = m * np.ones(N_all, dtype=np.float64)
+density = rho0 * np.ones(N_all, dtype=np.float64)
 pressure = eos(density)
 
 xpos_half = xpos
@@ -89,8 +91,8 @@ dt = 0.0001
 tlim = 30
 with open("log/params/values.csv".format(0), "w+") as file:
     writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    writer.writerow(["h", "support", "dt", "tlim", "C"])
-    writer.writerow([h, support, dt, tlim, C])
+    writer.writerow(["h", "support", "dt", "tlim", "C", "mass"])
+    writer.writerow([h, support, dt, tlim, C, m])
 
 print("Simulating SPH with {} particles.".format(N_real))
 print("Using  h = {:.5f};  dt = {};  c = {}".format(h, dt, C))
@@ -203,7 +205,7 @@ with open("log/poise/t{}.csv".format(c), "w+") as file:
 
 plt.plot(xvel, zpos, 'k.')
 
-poise = define_poiseuille(k=0.05, H=0.4, nu=30*h/8)
+poise = define_poiseuille(k=0.05, H=0.4, nu=C*h/(8*2.5))
 z = np.linspace(0, 0.4, 100)
 v = poise(z)
 plt.plot(v, z)

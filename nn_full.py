@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.linalg as lin
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import normalize
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -11,13 +11,13 @@ from equations import nnps
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-#
-# def split_train_test(data, targets, test):
-#     samples = targets.shape[0]
-#     split = int(samples * test)
-#     x_tr, x_ts = data[split:], data[:split]
-#     y_tr, y_ts = targets[split:], targets[:split]
-#     return x_tr, x_ts, y_tr, y_ts
+
+def train_test_split(data, targets, test_size):
+    samples = targets.shape[0]
+    split = int(samples * test_size)
+    x_tr, x_ts = data[split:], data[:split]
+    y_tr, y_ts = targets[split:], targets[:split]
+    return x_tr, x_ts, y_tr, y_ts
 
 
 def minmax(data):
@@ -31,8 +31,20 @@ def minmax(data):
     def rescaler(array):
         print("Rescaling with max={},  min={}".format(max_val, min_val))
         return array * (max_val - min_val) + min_val
-
     return (data - min_val) / (max_val - min_val), scaler, rescaler
+
+
+def scale(data):
+    min_val = np.min(data)
+
+    def scaler(array):
+        print("Scaling with min={}".format(min_val))
+        return array - min_val
+
+    def rescaler(array):
+        print("Rescaling with max={}".format(min_val))
+        return array + min_val
+    return data - min_val, scaler, rescaler
 
 
 def calculate_kernel(h, N, x0, z0, nn_list):
@@ -94,95 +106,83 @@ print("drho", drho[:3])
 
 mm_pos, sc_pos, resc_pos = minmax(pos)
 mm_vel, sc_vel, resc_vel = minmax(vel)
-mm_drho, sc_drho, resc_drho = minmax(drho)
-mm_dkn, sc_dkn, resc_dkn = minmax(dkn)
+mm_drho, sc_drho, resc_drho = scale(drho)
 
 print("Samples:", sample)
-print("Number of input particles:", N_out)
+print("Number of input particles:", N_in)
 print("Number of output particles:", N_out)
 print("Preparing features and labels...")
-vars = 2
-X = np.zeros((sample, N_in*vars))
-V = np.zeros((sample, N_in*vars))
-y_dkn = np.zeros((sample, 2*N_out))
+vars = 4
+X = np.zeros((sample, N_in, vars))
 y_drho = np.zeros((sample, N_out))
-X[:, :N_in] = mm_pos[:, :, 0]
-X[:, N_in:] = mm_pos[:, :, 1]
+X[:, :, 0] = mm_pos[:, :, 0]
+X[:, :, 1] = mm_pos[:, :, 1]
+X[:, :, 2] = mm_vel[:, :, 0]
+X[:, :, 3] = mm_vel[:, :, 1]
 
-y_dkn[:, :N_out] = mm_dkn[:, :, 0]
-y_dkn[:, N_out:] = mm_dkn[:, :, 1]
 y_drho[:, :N_out] = mm_drho[:, :, 0]
 
-X_train, X_test, y_train_dkn, y_test_dkn = train_test_split(X, y_dkn, test_size=0.01)
+X_train, X_test, y_train_drho, y_test_drho = train_test_split(X, y_drho, test_size=0.01)
 print("X train shape:", X_train.shape)
-print("y train shape:", y_train_dkn.shape)
+print("y train shape:", y_train_drho.shape)
 print("X test shape:", X_test.shape)
-print("y test shape:", y_test_dkn.shape)
-# X_train, X_test = list(X_train), list(X_test)
+print("y test shape:", y_test_drho.shape)
 
 # Define Neural Network Model
 act = 'relu'
 
-inputs = layers.Input(shape=(N_in*vars,))
-x = layers.Reshape((N_in, vars))(inputs)
-x = layers.Conv1D(N_out, 20, activation=act)(x)
-x = layers.Conv1D(N_out, 20, activation=act)(x)
-x = layers.MaxPooling1D(5)(x)
-x = layers.Conv1D(N_out, 20, activation=act)(x)
+inputs = layers.Input(shape=(N_in, vars))
+# x = layers.Conv1D(N_out, 20, activation=act)(inputs)
+# x = layers.Conv1D(N_out, 20, activation=act)(x)
+# x = layers.MaxPooling1D(5)(x)
+x = layers.Conv1D(N_out, 20, activation=act)(inputs)
 x = layers.Conv1D(N_out, 20, activation=act)(x)
 x = layers.GlobalAveragePooling1D()(x)
-x = layers.Dropout(0.5)(x)
-out1 = layers.Dense(N_out, activation='linear')(x)
-out2 = layers.Dense(N_out, activation='linear')(x)
-#
-# inputs_vel = list()
-# for i in range(N):
-#     inputs_vel.append(layers.Input(shape=(2,)))
-# z_drho = layers.concatenate(inputs_vel)
-# z_drho = layers.Dense(8 * N, activation=act)(z_drho)
-# z_drho = layers.Dot(axes=-1)([x, z_drho])
-# z_drho = layers.Dense(8 * N, activation=act)(z_drho)
-# z_drho = layers.Dense(2 * N, activation=act)(z_drho)
-# out_vel = layers.Dense(N, activation='linear')(z_drho)
+# x = layers.Dropout(0.5)(x)
+x = layers.Dense(10*N_out, activation='relu')(x)
+x = layers.Dense(5*N_out, activation='relu')(x)
+out = layers.Dense(N_out, activation='linear')(x)
 
-model = models.Model(inputs=inputs, outputs=[out1, out2])
+
+model = models.Model(inputs=inputs, outputs=out)
 # tf.contrib.keras.utils.plot_model(model, to_file='multilayer_perceptron_graph.png')
 model.summary()
 early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=10)
 opt = optimizers.Adam(lr=1e-3, decay=1e-5)
 model.compile(optimizer=opt,
-              loss=['mean_squared_error', 'mean_squared_error'],
-              loss_weights=[1,1],
+              loss='mean_squared_error',
               metrics=['mean_absolute_percentage_error'])
 try:
-    history = model.fit(X_train, [y_train_dkn[:, :N_out], y_train_dkn[:, N_out:]], epochs=100, batch_size=10,
+    history = model.fit(X_train, y_train_drho[:, :N_out], epochs=100, batch_size=10,
                         callbacks=[early_stop], validation_split=0.01, shuffle=True)
 except KeyboardInterrupt:
     pass
 
 model.save("models/nn_full.h5")
 
-# b = time.time()
-# r = lin.norm(pdiff, axis=-1).reshape((samples, 20, 1))
-# us = pdiff / r
-# _, dw = gaussian(r, us, h)
-# y_test = np.sum(continuity(vdiff, dw), axis=-1)
-# a = time.time()
-# t_real = a-b
+b = time.time()
+pdiff = resc_pos(X_test[:,:, 0:2])
+vdiff = resc_vel(X_test[:,:, 2:4])
+r = lin.norm(pdiff, axis=-1).reshape((-1, N_in, 1))
+us = pdiff / r
+_, dw = gaussian(r, us, h)
+y_test = np.sum(continuity(vdiff, dw), axis=-1)
+a = time.time()
+t_real = a-b
 
 b = time.time()
-y_pred_dkn = resc_dkn(model.predict(X_test))
+y_pred_dkn = resc_drho(model.predict(X_test))
 a = time.time()
 t_pred = a - b
 
 print("Pred: {}s".format(t_pred))
 print("dkernels")
-print(np.dstack((y_test_dkn.ravel(), sc_dkn(y_pred_dkn.ravel()))))
-print(np.dstack((resc_dkn(y_test_dkn.ravel()), y_pred_dkn.ravel())))
+print(np.dstack((y_test_drho.ravel(), sc_drho(y_pred_dkn.ravel()))))
+print(np.dstack((resc_drho(y_test_drho.ravel()), y_pred_dkn.ravel())))
 # print('drhos')
 # print(np.dstack((y_test_drho.ravel(), sc_dkn(y_pred_drho.ravel()))))
 # print(np.dstack((resc_dkn(y_test_drho.ravel()), y_pred_drho.ravel())))
 
-errs = (abs(sc_dkn(y_test_dkn.ravel()) - y_pred_dkn.ravel()))
-plt.plot(resc_dkn(y_test_dkn.ravel()), errs, 'k.')
+errs = (abs(sc_drho(y_test_drho.ravel()) - y_pred_dkn.ravel()))
+plt.plot(resc_drho(y_test_drho.ravel()), errs, 'k.')
 plt.show()
