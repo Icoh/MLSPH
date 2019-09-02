@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 import timeit
 import csv
 import tensorflow as tf
-from nn_kn import train
+from nn_cont import train
 
-config = tf.ConfigProto(device_count={'GPU': 1, 'CPU':4})
+config = tf.ConfigProto(device_count={'GPU': 1, 'CPU': 4})
 sess = tf.Session(config=config)
 tf.keras.backend.set_session(sess)
 
@@ -47,73 +47,65 @@ def continuity(vdiff, dkernel):
     return (vdiff * dkernel).reshape(-1, 1)
 
 
-setup_code = '''
-from tensorflow.contrib.keras import models
-import numpy as np
-samples = int(1e5)
-X = np.random.uniform(0, 3, (samples, 1))
-model = models.load_model("models/{}/h{}/nn_{}_{}.h5")
-'''
-
-title = 'kernel'
-neurons = [150]
-repeat = 1
-epochs = 50
+title = 'continuity'
+neurons = [10, 20, 50, 100, 150, 250]
+repeat = 3
+epochs = 5
 act = 'relu'
-hidden_units = 3
+hidden_units = [1, 2, 3]
 
 samples = int(1e5)
 print("Generating {} samples... ".format(samples))
-X_test = np.random.uniform(0, 3, (samples, 1))
-y_test = gaussian(X_test, 1)
+norms = np.random.uniform(0, 3, samples)
+veldiffs = np.random.uniform(0, 1, samples)
+dkn = dgaussian(norms, 1)
+cont = continuity(veldiffs, dkn)
+
+X_test = np.zeros((samples, 2))
+X_test[:, 0] = norms/3
+X_test[:, 1] = veldiffs
+y_test = cont
 print("Done!")
 
-rm_means = ['rmse']
-rm_std = ['rm std']
-ma_means = ["mape"]
-ma_std = ["ma std"]
-times = ["time"]
+for hid in hidden_units:
+    rm_means = ['rmse']
+    rm_std = ['rm std']
+    ma_means = ["mape"]
+    ma_std = ["ma std"]
+    for n in neurons:
+        n_rm = np.zeros(repeat)
+        n_ma = np.zeros(repeat)
+        n_times = np.zeros(repeat)
 
-for n in neurons:
-    n_rm = np.zeros(repeat)
-    n_ma = np.zeros(repeat)
-    n_times = np.zeros(repeat)
+        for i in range(repeat):
+            print("  >> Repetition", i)
+            print("   >> Training NN with {} neurons".format(n))
+            model = train(n, hidden=hid, act=act, epochs=epochs, repetition=i)
 
-    for i in range(repeat):
-        print("  >> Repetition", i)
-        print("   >> Training NN with {} neurons".format(n))
-        model = train(n, hidden=hidden_units, act=act, epochs=epochs, repetition=i, summary=True)
+            y_pred = model.predict(X_test)
 
-        y_pred = model.predict(X_test)
+            print(np.dstack((y_test.ravel(), y_pred.ravel())))
 
-        time = timeit.timeit(setup=setup_code.format(title, hidden_units, n, i),
-                             stmt="model.predict(X)", number=1)
-        print(np.dstack((y_test.ravel(), y_pred.ravel())))
+            rm = rmse(y_test, y_pred)
+            ma = mape(y_test, y_pred)
+            print(">> RMSE:{};   MAPE:{}".format(rm, ma))
+            n_rm[i] = rm
+            n_ma[i] = ma
 
-        rm = rmse(y_test, y_pred)
-        ma = mape(y_test, y_pred)
-        print(">> Time:", time)
-        print(">> RMSE:{};   MAPE:{}".format(rm, ma))
-        n_rm[i] = rm
-        n_ma[i] = ma
-        n_times[i] = time
+        rm_means.append(np.mean(n_rm))
+        ma_means.append(np.mean(n_ma))
+        if repeat > 1:
+            rm_std.append(np.std(n_rm, ddof=1))
+            ma_std.append(np.std(n_ma, ddof=1))
+            print(" >>>>>>>>>>>>> END OF REPETITIONS <<<<<<<<<<<<")
+            print(">> RMSE:{};   MAPE:{}".format(rm_means[-1], ma_means[-1]))
+            print(">> std:{},    std:{}".format(rm_std[-1], ma_std[-1]))
 
-    times.append(np.mean(n_times))
-    rm_means.append(np.mean(n_rm))
-    ma_means.append(np.mean(n_ma))
-    if repeat > 1:
-        rm_std.append(np.std(n_rm, ddof=1))
-        ma_std.append(np.std(n_ma, ddof=1))
-        print(" >>>>>>>>>>>>> END OF REPETITIONS <<<<<<<<<<<<")
-        print(">> RMSE:{};   MAPE:{}".format(rm_means[-1], ma_means[-1]))
-        print(">> std:{},    std:{}".format(rm_std[-1], ma_std[-1]))
-
-log_file = open('models/{}/h{}/stats.csv'.format(title, hidden_units), 'w+')
-writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-writer.writerow([""] + neurons)
-writer.writerow(rm_means)
-writer.writerow(rm_std)
-writer.writerow(ma_means)
-writer.writerow(ma_std)
-writer.writerow(times)
-log_file.close()
+    log_file = open('models/{}/h{}/stats.csv'.format(title, hid), 'w+')
+    writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    writer.writerow([""] + neurons)
+    writer.writerow(rm_means)
+    writer.writerow(rm_std)
+    writer.writerow(ma_means)
+    writer.writerow(ma_std)
+    log_file.close()

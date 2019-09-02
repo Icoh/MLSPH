@@ -3,39 +3,13 @@ from tensorflow.contrib.keras import layers, models, callbacks, optimizers
 import pickle
 
 
-class Minmax:
-    def __init__(self, data):
-        self.data = data
-        self.max_val = np.max(data)
-        self.min_val = np.min(data)
-        print("Scaler with max={},  min={}".format(self.max_val, self.min_val))
-
-    def scale(self, data=None):
-        if data is None:
-            return (self.data - self.min_val) / (self.max_val - self.min_val)
-        else:
-            return (data - self.min_val) / (self.max_val - self.min_val)
-
-    def rescale(self, data):
-        return data * (self.max_val-self.min_val) + self.min_val
-
-    def save(self, path):
-        with open('scalers/'+path, 'wb') as file:
-            pickle.dump(self, file)
-
-
-def load_scaler(path):
-    with open('scalers/' + path, 'rb') as file:
-        return pickle.load(file)
-
-
 def gaussian(r, h, dim=2):
     q = r / h
     g = np.exp(-q ** 2) / (h ** 2 * np.pi) ** (dim / 2.)
     return g
 
 
-def train(neurons, epochs=10, repetition=0, summary=False):
+def train(neurons, hidden, act, epochs=10, repetition=0, summary=False):
     samples = int(1e6)
     h = 1
     norms = np.random.uniform(0, 3, (samples, 1))

@@ -15,13 +15,13 @@ def gaussian(r, h, dim=2):
 
 def train(neurons, hidden=1, act='relu', epochs=10, repetition=0):
     samples = int(1e6)
-    norms = np.random.uniform(0, 3, (samples, 1))
-    veldiffs = np.random.uniform(0, 0.01, (samples, 1))
+    norms = np.random.uniform(0, 3, samples)
+    veldiffs = np.random.uniform(0, 1, samples)
     dkn = gaussian(norms, 1)
     cont = continuity(veldiffs, dkn)
 
     X = np.zeros((samples, 2))
-    X[:, 0] = norms
+    X[:, 0] = norms/3
     X[:, 1] = veldiffs
     y = cont
 
@@ -42,6 +42,6 @@ def train(neurons, hidden=1, act='relu', epochs=10, repetition=0):
                   loss='mean_squared_error',
                   metrics=['mean_absolute_percentage_error'])
 
-    history = model.fit(X, y, epochs=5, batch_size=100,
+    history = model.fit(X, y, epochs=epochs, batch_size=100,
                         callbacks=[early_stop, check_point], validation_split=0.01)
     return models.load_model(save_path)
