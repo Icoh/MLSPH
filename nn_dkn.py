@@ -1,39 +1,5 @@
 import numpy as np
-from sklearn.preprocessing import normalize
-from sklearn.model_selection import train_test_split
-import scipy.spatial as sp
-import scipy.linalg as lin
-import matplotlib.pyplot as plt
-import time
 from tensorflow.contrib.keras import layers, models, callbacks, optimizers
-import tensorflow as tf
-
-
-def minmax(data):
-    max_val = np.max(data)
-    min_val = np.min(data)
-
-    def scaler(array):
-        print("Scaling with max={},  min={}".format(max_val, min_val))
-        return (array - min_val) / (max_val - min_val)
-
-    def rescaler(array):
-        print("Rescaling with max={},  min={}".format(max_val, min_val))
-        return array * (max_val-min_val) + min_val
-    return (data-min_val)/(max_val-min_val), scaler, rescaler
-
-
-def scale(data):
-    min_val = np.min(data)
-
-    def scaler(array):
-        print("Scaling with max={}".format(min_val))
-        return array-min_val
-
-    def rescaler(array):
-        print("Rescaling with max={}".format(min_val))
-        return array+min_val
-    return data-min_val, scaler, rescaler
 
 
 def gaussian(r, h, dim=2):
@@ -43,7 +9,7 @@ def gaussian(r, h, dim=2):
     return dg
 
 
-def train(neurons, hidden=1, act='relu'):
+def train(neurons, hidden=1, act='relu', epochs=10, repetition=0):
     samples = int(1e6)
     h = 1
     norms = np.random.uniform(0, 3, (samples, 1))
@@ -58,9 +24,8 @@ def train(neurons, hidden=1, act='relu'):
         x = layers.Dense(neurons, activation=act)(x)
     outputs = layers.Dense(1, activation='linear')(x)
 
-    save_path = "models/dkernel/nn_{}.h5".format(neurons)
+    save_path = "models/dkernel/h{}/nn_{}_{}.h5".format(hidden, neurons, repetition)
     model = models.Model(inputs=inputs, outputs=outputs)
-    model.summary()
     early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=5)
     check_point = callbacks.ModelCheckpoint(save_path,
                                             monitor='val_loss', save_best_only=True,
@@ -70,6 +35,6 @@ def train(neurons, hidden=1, act='relu'):
                   loss='mean_squared_error',
                   metrics=['mean_absolute_percentage_error'])
 
-    history = model.fit(X, y, epochs=10, batch_size=50,
+    history = model.fit(X, y, epochs=epochs, batch_size=100,
                         callbacks=[early_stop, check_point], validation_split=0.01)
     return models.load_model(save_path)

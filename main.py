@@ -47,17 +47,15 @@ N_real = xpos.size
 w = 2
 w1 = wall_gen([dom[0][0], dom[0][1]], [-w*zsp, -zsp], xsp, zsp)
 w4 = wall_gen([dom[0][0], dom[0][1]], [dom[1][1] + zsp, dom[1][1] + w * zsp], xsp, zsp)
-# w2 = wall_gen([-w * xsp, -xsp], dom[1], xsp, zsp)
-# w3 = wall_gen([dom[0][1] + xsp, dom[0][1] + xsp * w], dom[1], xsp, zsp)
 xwall = np.concatenate((w1[0], w4[0]), axis=0)
 zwall = np.concatenate((w1[1], w4[1]), axis=0)
 N_wall = xwall.size
 
 xpos = np.concatenate((xpos, xwall), axis=0)
 zpos = np.concatenate((zpos, zwall), axis=0)
+N_all = xpos.size
 
 # State
-N_all = xpos.size
 xvel = np.zeros(N_all, dtype=np.float64)
 zvel = np.zeros(N_all, dtype=np.float64)
 mass = m * np.ones(N_all, dtype=np.float64)
