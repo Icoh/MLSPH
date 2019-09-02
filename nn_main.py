@@ -3,12 +3,14 @@ from equations import eos_tait, nnps, calculate_accel, calculate_density, kernel
 from tools import check_dir, unit, plot, wall_gen
 from functools import partial
 from time import time
-from tensorflow.contrib.keras import models
-import process_data as sti
+import tensorflow as tf
 import scipy.linalg as lin
 import os, errno
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import matplotlib.pyplot as plt
+
+
+featcol = [tf.feature_column.numeric_column("dist"), tf.feature_column.numeric_column("vel")]
 
 
 def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
@@ -28,12 +30,8 @@ def calculate_continuity(h, N, x0, z0, xv0, zv0, m0, nn_list):
         r = lin.norm(posdiff, axis=-1).reshape(-1, 1)
         units = posdiff/r
 
-        X[i, :len(nbs), 0] = r.ravel()
-        X[i, :len(nbs), 1] = units[:, 0]
-        X[i, :len(nbs), 2] = units[:, 1]
-        X[i, :len(nbs), 3] = veldiff[:, 0]
-        X[i, :len(nbs), 4] = veldiff[:, 1]
-    cont = model.predict(X)
+        test_input_fn = tf.estimator.inputs.numpy_input_fn(r, batch_size=100,
+                                                       num_epochs=1, shuffle=False)
     ddens = np.sum(cont, axis=-2)
     return np.array(ddens).ravel()
 
@@ -114,7 +112,6 @@ def periodize(x, z, xv, zv, m, d, p):
 
 
 # Run simulation
-model = models.load_model('nn_cont.h5')
 support = 4
 h = zsp * 0.6
 dt = 0.00005

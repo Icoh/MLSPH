@@ -39,21 +39,21 @@ def gaussian(r, h, dim=2):
     return g
 
 
-def continuity(vdiff, dkernel, m=0.2):
-    return m * np.sum(vdiff * dkernel, axis=-1)
+def continuity(vdiff, dkernel):
+    return (vdiff * dkernel).reshape(-1,1)
 
 
 samples = [2 ** i for i in range(20)]
-# config = tf.ConfigProto(device_count={'GPU': 0, 'CPU': 4})
-# sess = tf.Session(config=config)
+config = tf.ConfigProto(device_count={'GPU': 0, 'CPU': 4})
+sess = tf.Session(config=config)
 
 setup_end = '''
-featcol = [tf.feature_column.numeric_column("dist")]
+featcol = [tf.feature_column.numeric_column("dist"), tf.feature_column.numeric_column("vel")]
 x = {'dist': X}
-test_input_fn = tf.estimator.inputs.numpy_input_fn(x, batch_size=1,
+test_input_fn = tf.estimator.inputs.numpy_input_fn(x, batch_size=100,
                                                    num_epochs=1, shuffle=False)
 opti = tf.train.AdamOptimizer(learning_rate=0.001)
-model = tf.estimator.DNNRegressor(feature_columns=featcol, hidden_units=[100, 100, 100],
+model = tf.estimator.DNNRegressor(feature_columns=featcol, hidden_units=[250, 250, 250],
                                       activation_fn=tf.nn.relu, optimizer=opti,
                                       model_dir=save_path)'''
 
@@ -67,9 +67,17 @@ def dgaussian(r, h, dim=2):
     dg = 2 * q / h * g
     return dg
 
-save_path = "./models/dnn/dkernel/"
+def continuity(vdiff, dkernel):
+    return (vdiff * dkernel).reshape(-1, 1)
+
+save_path = "./models/dnn/continuity/"
 samples = {}
-X = np.random.uniform(0, 3, samples)'''
+norms = np.random.uniform(0, 3, samples)
+veldiffs = np.random.uniform(0, 1, samples)
+
+X = np.zeros((samples, 2))
+X[:, 0] = norms
+X[:, 1] = veldiffs'''
 
 pred_times = []
 real_times = []
@@ -87,28 +95,45 @@ plt.xlabel("Muestras evaluadas")
 plt.ylabel("Tiempo (s)")
 plt.show()
 
-save_path = "./models/dnn/dkernel/"
-X = np.linspace(0, 3, 100000)
+save_path = "./models/dnn/continuity/"
+norms = np.random.uniform(0, 3, 10000)
+veldiffs = np.random.uniform(0, 1, 10000)
+dkn = dgaussian(norms, 1)
+cont = continuity(veldiffs, dkn)
 
-featcol = [tf.feature_column.numeric_column("dist")]
-x = {'dist': X}
+X = np.zeros((10000, 2))
+X[:, 0] = norms
+X[:, 1] = veldiffs
+y_real = cont
+
+featcol = [tf.feature_column.numeric_column("dist"), tf.feature_column.numeric_column("vel")]
+x = {'dist': norms, 'vel': veldiffs}
 test_input_fn = tf.estimator.inputs.numpy_input_fn(x, batch_size=100,
                                                    num_epochs=1, shuffle=False)
 opti = tf.train.AdamOptimizer(learning_rate=0.001)
-model = tf.estimator.DNNRegressor(feature_columns=featcol, hidden_units=[100, 100, 100],
+model = tf.estimator.DNNRegressor(feature_columns=featcol, hidden_units=[250, 250, 250],
                                   activation_fn=tf.nn.relu, optimizer=opti,
                                   model_dir=save_path)
 
-y_real = dgaussian(X, 1)
 predictions = model.predict(test_input_fn)
-y_pred = [pred['predictions'][0] for pred in predictions]
+y_pred = np.array([pred['predictions'][0] for pred in predictions])
+print(y_pred.shape)
+print(y_real.shape)
 
-rm = rmse(y_real, np.array(y_pred))
-ma = mape(y_real, np.array(y_pred))
-plt.plot(X, y_real, 'r-', label="Numpy")
-plt.plot(X, y_pred, 'c--', label="RMSE {:.5f}\nMAPE {:.2f}".format(rm, ma))
+rm = rmse(y_real.ravel(), y_pred.ravel())
+ma = mape(y_real.ravel(), y_pred.ravel())
+plt.plot(X[:,1], y_real.ravel(), 'r.', label="Numpy")
+plt.plot(X[:,1], y_pred.ravel(), 'c.', label="RMSE {:.5f}\nMAPE {:.2f}".format(rm, ma))
 plt.grid()
 plt.legend()
-plt.ylabel(r'$\nabla$ W(q)')
-plt.xlabel('q')
+plt.ylabel(r'D(r,u)')
+plt.xlabel('y')
+plt.show()
+
+plt.plot(X[:,0], y_real.ravel(), 'r.', label="Numpy")
+plt.plot(X[:,0], y_pred.ravel(), 'c.', label="RMSE {:.5f}\nMAPE {:.2f}".format(rm, ma))
+plt.grid()
+plt.legend()
+plt.ylabel(r'D(r,u)')
+plt.xlabel('r')
 plt.show()
