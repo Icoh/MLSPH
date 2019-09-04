@@ -72,7 +72,7 @@ x = {'dist': train_x[:,0], 'vel': train_x[:,1]}
 x_t = {'dist': test_x[:,0], 'vel': test_x[:,1]}
 y = train_y
 
-input_fn = tf.estimator.inputs.numpy_input_fn(x, y, num_epochs=1, shuffle=True,
+input_fn = tf.estimator.inputs.numpy_input_fn(x, y, num_epochs=20, shuffle=True,
                                               queue_capacity=1000, num_threads=1)
 
 test_input_fn = tf.estimator.inputs.numpy_input_fn(x_t, batch_size=100,
@@ -86,7 +86,7 @@ model = tf.estimator.DNNRegressor(feature_columns=featcol, hidden_units=[250, 25
                                   activation_fn=tf.nn.relu, optimizer=opti,
                                   model_dir=save_path)
 
-model.train(input_fn, steps=10000)
+model.train(input_fn, steps=100000)
 
 
 def get_pred(data):

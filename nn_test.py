@@ -90,25 +90,26 @@ cont = continuity(X[:,1], dg)
 
 pred_times = []
 real_times = []
-for s in samples:
-    print(s)
-    pred_times.append(timeit.timeit("list(map(get_pred, model.predict(test_input_fn)))", setup=setup_min.format(s) +
-                                                                                               setup_end, number=1))
-    real_times.append(timeit.timeit(code, setup=setup_min.format(s), number=5))
+# for s in samples:
+#     print(s)
+#     pred_times.append(timeit.timeit("list(map(get_pred, model.predict(test_input_fn)))", setup=setup_min.format(s) +
+#                                                                                                setup_end, number=1))
+#     real_times.append(timeit.timeit(code, setup=setup_min.format(s), number=5))
 
-plt.plot(samples, real_times, 'mo', label="Numpy")
-plt.plot(samples, pred_times, 'co', label="Red neuronal")
-plt.yscale('log')
-plt.xscale('log')
-plt.legend()
-plt.grid()
-plt.xlabel("Muestras evaluadas")
-plt.ylabel("Tiempo (s)")
-plt.show()
+# plt.plot(samples, real_times, 'mo', label="Numpy")
+# plt.plot(samples, pred_times, 'co', label="Red neuronal")
+# plt.yscale('log')
+# plt.xscale('log')
+# plt.legend()
+# plt.grid()
+# plt.xlabel("Muestras evaluadas")
+# plt.ylabel("Tiempo (s)")
+# plt.show()
 
 save_path = "./models/dnn/continuity/"
 
 print("Measuring time...")
+s = 5000
 norms = np.random.uniform(0, 3, s)
 veldiffs = np.random.uniform(0, 1, s)
 dkn = dgaussian(norms, 1)
@@ -124,7 +125,7 @@ x = {'dist': norms, 'vel': veldiffs}
 test_input_fn = tf.estimator.inputs.numpy_input_fn(x, batch_size=100,
                                                    num_epochs=1, shuffle=False)
 opti = tf.train.AdamOptimizer(learning_rate=0.001)
-model = tf.estimator.DNNRegressor(feature_columns=featcol, hidden_units=[500, 500, 1000, 1000, 1000, 500, 500],
+model = tf.estimator.DNNRegressor(feature_columns=featcol, hidden_units=[250,250,250],
                                   activation_fn=tf.nn.relu, optimizer=opti,
                                   model_dir=save_path)
 end = time.time()
@@ -143,7 +144,7 @@ plt.plot(X[:,1], y_pred.ravel(), 'c.', label="RMSE {:.5f}\nMAPE {:.2f}".format(r
 plt.grid()
 plt.legend()
 plt.ylabel(r'D(r,u)')
-plt.xlabel('y')
+plt.xlabel('u')
 plt.show()
 
 plt.plot(X[:,0], y_real.ravel(), 'r.', label="Numpy")
