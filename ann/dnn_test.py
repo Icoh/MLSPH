@@ -64,7 +64,7 @@ plt.xlabel("Muestras evaluadas")
 plt.ylabel("Tiempo (s)")
 plt.show()
 
-save_path = "./models/dnn/continuity/"
+save_path = "../models/dnn/continuity/"
 
 s = 5000
 norms = np.random.uniform(0, 3, s)

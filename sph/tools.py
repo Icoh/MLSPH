@@ -15,6 +15,8 @@ def check_dir(path):
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
+        return
+    print("{} not found. Folder created.".format(path))
 
 
 def plot(X, Z, C, domain, step, dt, *args, **kwargs):
@@ -26,7 +28,7 @@ def plot(X, Z, C, domain, step, dt, *args, **kwargs):
     # plt.xlim(domain[1][0]-0.05, domain[1][-1]+0.05)
     # plt.ylim(domain[1][0]-0.05, domain[1][-1]+0.05)
     f.axes[0].axis('equal')
-    plt.savefig("{}/{}.png".format("sim", step), bbox_inches='tight')
+    plt.savefig("{}/{}.png".format("../sim", step), bbox_inches='tight')
     plt.close(f)
     return
 

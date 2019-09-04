@@ -5,8 +5,12 @@ from time import time
 import matplotlib.pyplot as plt
 import os
 from ann.equations import gaussian, dgaussian, continuity, rmse, mape
+from sph.tools import check_dir
 
-save_path = "./models/dnn/continuity/"
+save_path = "../models/dnn/continuity/"
+check_dir("../models")
+check_dir("../models/dnn")
+check_dir(save_path)
 warm = False
 if not warm:
     paths = os.listdir(save_path)

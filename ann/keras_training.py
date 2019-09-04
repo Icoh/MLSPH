@@ -2,6 +2,7 @@ import numpy as np
 import csv
 from ann.keras_cont import train
 from ann.equations import gaussian, dgaussian, continuity, rmse, mape
+from sph.tools import check_dir
 
 '''
 This file uses other "keras_X" files' "train" defined methods
@@ -15,6 +16,12 @@ epochs = 5
 act = 'relu'
 hidden_units = [1, 2, 3]
 
+check_dir("../models")
+check_dir("../models/{}".format(title))
+for h in hidden_units:
+    check_dir('../models/{}/h{}'.format(title, h))
+
+# Test samples
 samples = int(1e5)
 print("Generating {} samples... ".format(samples))
 norms = np.random.uniform(0, 3, samples)
@@ -28,6 +35,7 @@ X_test[:, 1] = veldiffs
 y_test = cont
 print("Done!")
 
+# Run trainings for each setting
 for hid in hidden_units:
     rm_means = ['rmse']
     rm_std = ['rm std']
@@ -62,7 +70,7 @@ for hid in hidden_units:
             print(">> RMSE:{};   MAPE:{}".format(rm_means[-1], ma_means[-1]))
             print(">> std:{},    std:{}".format(rm_std[-1], ma_std[-1]))
 
-    log_file = open('models/{}/h{}/stats.csv'.format(title, hid), 'w+')
+    log_file = open('../models/{}/h{}/stats.csv'.format(title, hid), 'w+')
     writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     writer.writerow([""] + neurons)
     writer.writerow(rm_means)

@@ -2,12 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.contrib.keras import models
 from ann.equations import dgaussian, continuity
+from sph.tools import check_dir
 
+save_path = "../models/continuity/"
+check_dir(save_path)
 
-
-model1 = models.load_model("models/continuity/h1/nn_250_0.h5")
-model2 = models.load_model("models/continuity/h2/nn_250_0.h5")
-model3 = models.load_model("models/continuity/h3/nn_250_0.h5")
+model1 = models.load_model(save_path + "h1/nn_250_0.h5")
+model2 = models.load_model(save_path + "h2/nn_250_0.h5")
+model3 = models.load_model(save_path + "h3/nn_250_0.h5")
 
 X = np.linspace(0, 3, 250)
 V = np.linspace(0, 1, 250)

@@ -1,11 +1,9 @@
 import numpy as np
 from sph.equations import eos_tait, nnps, calculate_continuity, calculate_accel, calculate_density
-from sph.tools import check_dir, save_data, plot, wall_gen
+from sph.tools import check_dir, plot, wall_gen
 from functools import partial
 from time import time
-import matplotlib.pyplot as plt
 import csv
-import os, errno
 
 
 '''
@@ -20,7 +18,7 @@ def define_poiseuille(k, H, nu):
 
 
 # Check directories needed
-paths = ["../log", "../sim", "../log/params", "../log/inputs", "../log/targets", "../log/poise"]
+paths = ["../log", "../sim", "../log/inputs", "../log/targets", "../log/poise"]
 for path in paths:
     check_dir(path)
 
@@ -88,7 +86,7 @@ h = zsp * 0.9
 support = 3
 dt = 0.0001
 tlim = 30
-with open("../log/params/values.csv".format(0), "w+") as file:
+with open("../log/params.csv".format(0), "w+") as file:
     writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     writer.writerow(["h", "support", "dt", "tlim", "C", "mass"])
     writer.writerow([h, support, dt, tlim, C, m])
@@ -137,7 +135,7 @@ xp, zp, xvp, zvp, mp, dp, pp = periodize(xpos, zpos, xvel, zvel, mass, density, 
 for c, t in enumerate(time_range, 1):
     # Save initial positions and velocities (right before performing first time step)
     if not c % 50:
-        with open("log/inputs/t{}.csv".format(c), "w+") as file:
+        with open("../log/inputs/t{}.csv".format(c), "w+") as file:
             writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             writer.writerow(["xpos", "zpos", "xvel", "zvel"])
             writer.writerows(zip(xp, zp, xvp, zvp))
@@ -174,10 +172,10 @@ for c, t in enumerate(time_range, 1):
 
     # Save rate of changes at the end of timestep corresponding to the initial positions and velocities
     if not c % 50:
-        with open("log/poise/t{}.csv".format(c), "w+") as file:
+        with open("../log/poise/t{}.csv".format(c), "w+") as file:
             writer = csv.writer(file)
             writer.writerows(zip(xvel, zpos))
-        with open("log/targets/t{}.csv".format(c), "w+") as file:
+        with open("../log/targets/t{}.csv".format(c), "w+") as file:
             writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             writer.writerow(["xacc", "zacc", "density", "drho"])
             writer.writerows(zip(xacc, zacc, density, drho))
